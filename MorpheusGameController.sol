@@ -9,34 +9,55 @@ import "./Rabbits.sol";
 contract MorpheusGameController is Ownable, usingProvable {
     using SafeMath for uint256;
 
+    // Tokens used in game
     MorpheusToken public morpheus;
     Rabbits public rabbits;
 
-    constructor(MorpheusToken _morpheusToken) public {
-        morpheus = _morpheusToken;
-    }
+    // Rewards
+    uint256 private _lastRewardTime;
+    // Total quantity of tokens in the reward pool
+    uint256 private _rewardPool;
+    // Total reward part, used for calculate proportion reward for users
+    uint256 private _totalRewardPart;
 
-    uint256 public lastRewardTime;
-    uint256 public rewardPool;
-    uint256 public totalRewardPart;
+    // number of period / claim
+    uint256 private _numberOfPeriod;
 
+    // Total valuePlayed
+    uint256 private _totalValuePlayed;
+
+    // All players from a period between 2 claims
+    // Reload each time globalClaim is activated
     address[] private _playersFromPeriod;
 
-    address[] private _matrixHolders;
+    // Addresses of MatrixRunners
+    address[] private _matrixRunners;
 
-    mapping(address => uint256) public myRewardPart;
-    mapping(address => uint256) public myRewardTokens;
+    // Reward part for each players, used for calculate proportion reward
+    mapping(address => uint256) private _myRewardPart;
+    // Reward that player can claim
+    mapping(address => uint256) private _myRewardTokens;
 
-    mapping(address => uint256) public myPeriodLoss;
-    mapping(address => uint256) public myPeriodBets;
+    // Values used for calculate who are Kings
+    mapping(address => uint256) private _myPeriodLoss;
+    mapping(address => uint256) private _myPeriodBets;
 
+    // King ot the mountain is the player who have done the most bets value in a period
+    // There is only one King of the mountain, if someone got the same bets value,
+    // he can't dethrone the king, only a bigger bets value can dethrone the actual king
     address public kingOfTheMountain;
+    // Same logic for King of Loosers who is the player who lost the most value
     address public kingOfLoosers;
+    uint256 public valueLostByKingOfLoosers;
 
     event alertEvent(string alert);
     event winAlert(address winner, uint256 amount);
     event lostAlert(address looser, uint256 amount);
-    event rewardClaimed(address claimer, uint256 value);
+    event rewardClaimed(
+        address claimer,
+        uint256 claimerGain,
+        uint256 burntValue
+    );
 
     // =========================================================================================
     // Settings Functions
@@ -47,9 +68,61 @@ contract MorpheusGameController is Ownable, usingProvable {
         address _matrix2,
         address _matrix3
     ) public onlyOwner() {
-        _matrixHolders.push(_matrix1);
-        _matrixHolders.push(_matrix2);
-        _matrixHolders.push(_matrix3);
+        _matrixRunners.push(_matrix1);
+        _matrixRunners.push(_matrix2);
+        _matrixRunners.push(_matrix3);
+    }
+
+    function setMorpheusToken(MorpheusToken _morpheusToken) public onlyOwner() {
+        morpheus = _morpheusToken;
+    }
+
+    function setRabbitsToken(Rabbits _rabbits) public onlyOwner() {
+        rabbits = _rabbits;
+    }
+
+    // =========================================================================================
+    // Get Functions
+    // =========================================================================================
+
+    function getGameData()
+        public
+        view
+        returns (
+            uint256 totalPeriod,
+            uint256 totalValuePlayed,
+            uint256 totalPart,
+            uint256 lastRewardTime,
+            uint256 actualPool,
+            uint256 totalPlayersForThosePeriod
+        )
+    {
+        return (
+            _numberOfPeriod,
+            _totalValuePlayed,
+            _totalRewardPart,
+            _lastRewardTime,
+            _rewardPool,
+            _playersFromPeriod.length
+        );
+    }
+
+    function getPersonnalData(address _user)
+        public
+        view
+        returns (
+            uint256 myRewardPart,
+            uint256 myRewardTokens,
+            uint256 myPeriodLoss,
+            uint256 myPeriodBets
+        )
+    {
+        return (
+            _myRewardPart[_user],
+            _myRewardTokens[_user],
+            _myPeriodLoss[_user],
+            _myPeriodBets[_user]
+        );
     }
 
     // =========================================================================================
@@ -69,6 +142,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     mapping(bytes32 => gameInstance) gamesInstances;
 
     function choosePils(uint256 _amount, uint8 _choice) public payable {
+        // We need some GAS for get a true random number giving by provable API
         require(
             _amount > 0 &&
                 morpheus.balanceOf(msg.sender) > _amount &&
@@ -76,9 +150,11 @@ contract MorpheusGameController is Ownable, usingProvable {
         );
         morpheus.transferFrom(msg.sender, address(this), _amount);
         _addPlayerToList(msg.sender);
-        myPeriodBets[msg.sender] = myPeriodBets[msg.sender].add(_amount);
+        _totalValuePlayed = _totalValuePlayed.add(_amount);
 
-        if (myPeriodBets[msg.sender] > myPeriodBets[kingOfTheMountain]) {
+        _myPeriodBets[msg.sender] = _myPeriodBets[msg.sender].add(_amount);
+
+        if (_myPeriodBets[msg.sender] > _myPeriodBets[kingOfTheMountain]) {
             kingOfTheMountain = msg.sender;
         }
 
@@ -124,27 +200,28 @@ contract MorpheusGameController is Ownable, usingProvable {
                 );
                 emit winAlert(GameInstance.player, GameInstance.amount.mul(2));
             } else {
-                myPeriodLoss[GameInstance.player] = myPeriodLoss[GameInstance
+                _myPeriodLoss[GameInstance.player] = _myPeriodLoss[GameInstance
                     .player]
                     .add(GameInstance.amount);
 
-                if (myPeriodLoss[msg.sender] > myPeriodLoss[kingOfLoosers]) {
+                if (_myPeriodLoss[msg.sender] > _myPeriodLoss[kingOfLoosers]) {
                     kingOfLoosers = msg.sender;
                 }
 
-                uint256 _totalRewards = rewardPool;
-                rewardPool = _totalRewards.add(GameInstance.amount);
+                uint256 _totalRewards = _rewardPool;
+                _rewardPool = _totalRewards.add(GameInstance.amount);
 
 
                     uint256 _tempPersonnalProportionnalReward
-                 = myRewardPart[GameInstance.player];
+                 = _myRewardPart[GameInstance.player];
 
-                myRewardPart[GameInstance
+                _myRewardPart[GameInstance
                     .player] = _tempPersonnalProportionnalReward.add(
-                    myRewardPart[GameInstance.player]
+                    _myRewardPart[GameInstance.player]
                 );
 
                 emit lostAlert(GameInstance.player, GameInstance.amount);
+                _setKingOfLoosers();
             }
             delete gamesInstances[_id];
         }
@@ -166,123 +243,180 @@ contract MorpheusGameController is Ownable, usingProvable {
         return exist;
     }
 
+    function _setKingOfLoosers() internal {
+        address _kingOfLoosers;
+        uint256 _valueLost = 0;
+        for (uint256 i = 0; i < _playersFromPeriod.length; i++) {
+            if (
+                _myPeriodBets[_playersFromPeriod[i]].div(2) <
+                _myPeriodLoss[_playersFromPeriod[i]]
+            ) {
+                uint256 _lostByi = _myPeriodLoss[_playersFromPeriod[i]].sub(
+                    _myPeriodBets[_playersFromPeriod[i]].div(2)
+                );
+                if (_valueLost < _lostByi) {
+                    _valueLost = _lostByi;
+                    _kingOfLoosers = _playersFromPeriod[i];
+                }
+            }
+        }
+        kingOfLoosers = _kingOfLoosers;
+        valueLostByKingOfLoosers = _valueLost;
+    }
+
     // =========================================================================================
     // Rewards Functions
     // =========================================================================================
 
     function claimRewards() public {
-        require(rewardPool > 0);
+        require(_rewardPool > 0);
 
         // Security re entry
-        uint256 _rewardPool = rewardPool;
-        rewardPool = 0;
-        lastRewardTime = now;
+        uint256 _tempRewardPool = _rewardPool;
+        _rewardPool = 0;
+        _lastRewardTime = now;
 
-        // First Burning
-        uint8 burnPercentage = _getBurnPercentage();
-        uint256 totalToBurn = (_rewardPool.mul(burnPercentage)).div(100);
-        morpheus.burnTokens(totalToBurn);
+        _numberOfPeriod = _numberOfPeriod.add(1);
 
-        // Update temp reward pool
-        _rewardPool = _rewardPool.sub(totalToBurn);
-
-        // Matrix rewards 4%
-        uint256 rewardForMatrix = (
-            (_rewardPool.mul(4)).div(100).sub((_rewardPool.mul(4)).div(100) % 3)
-        );
-        _transferToMatrixHolders(rewardForMatrix);
-
-        // rewarding claimer 5%
-        uint256 rewardForClaimer = (_rewardPool.mul(5)).div(100);
-        morpheus.transfer(msg.sender, rewardForClaimer);
-
-        // rewarding kings
-        uint256 rewardForKings = (_rewardPool.mul(1)).div(100);
+        // First rewarding kings
+        uint256 rewardForKings = (_tempRewardPool.mul(1)).div(100);
         _transferToKingOfMountain(rewardForKings);
         _transferToKingOfLoosers(rewardForKings);
 
+        // updating reward pool
+        _tempRewardPool = _tempRewardPool.sub(rewardForKings);
+        _tempRewardPool = _tempRewardPool.sub(rewardForKings);
+
+        // then Burning
+        uint8 burnPercentage = _getBurnPercentage();
+        uint256 totalToBurn = (_tempRewardPool.mul(burnPercentage)).div(100);
+        morpheus.burnTokens(totalToBurn);
+
+        // Update temp reward pool
+        _tempRewardPool = _tempRewardPool.sub(totalToBurn);
+
+        // Matrix rewards 4%
+        uint256 rewardForMatrix = (
+            (_tempRewardPool.mul(4)).div(100).sub(
+                (_tempRewardPool.mul(4)).div(100) % 3
+            )
+        );
+        _transferToMatrixRunners(rewardForMatrix);
+
+        // rewarding claimer 5%
+        uint256 rewardForClaimer = (_tempRewardPool.mul(5)).div(100);
+        morpheus.transfer(msg.sender, rewardForClaimer);
+
         // update _rewardPool
-        _rewardPool = _rewardPool.sub(rewardForClaimer);
-        _rewardPool = _rewardPool.sub(rewardForMatrix);
-        _rewardPool = _rewardPool.sub(rewardForKings);
-        _rewardPool = _rewardPool.sub(rewardForKings);
+        _tempRewardPool = _tempRewardPool.sub(rewardForClaimer);
+        _tempRewardPool = _tempRewardPool.sub(rewardForMatrix);
 
         // Update rewards and refresh period .
-        _setRewards(_rewardPool);
+        _setRewards(_tempRewardPool);
         _deleteAllPlayersFromPeriod();
+
+        emit rewardClaimed(msg.sender, rewardForClaimer, totalToBurn);
     }
 
     function claimMyReward() public {
-        require(myRewardTokens[msg.sender] > 0);
-        uint256 _myRewardTokens = myRewardTokens;
-        myRewardTokens = 0;
-        morpheus.transferFrom(
-            address(this),
-            msg.sender,
-            myRewardTokens[msg.sender]
-        );
+        require(_myRewardTokens[msg.sender] > 0);
+        uint256 _myTempRewardTokens = _myRewardTokens[msg.sender];
+        _myRewardTokens[msg.sender] = 0;
+        morpheus.transferFrom(address(this), msg.sender, _myTempRewardTokens);
     }
 
     function _getBurnPercentage() internal view returns (uint8) {
-        if (now.sub(lastRewardTime) < 1 days) {
-            return 80;
+        uint256 _timeSinceLastReward = now.sub(_lastRewardTime);
+        uint8 _burnPercentage = 80;
+
+        if (_timeSinceLastReward > 1 days && _timeSinceLastReward < 2 days) {
+            _burnPercentage = 70;
         }
-        if (now.sub(lastRewardTime) < 2 days) {
-            return 70;
+        if (_timeSinceLastReward >= 2 days && _timeSinceLastReward < 3 days) {
+            _burnPercentage = 60;
         }
-        if (now.sub(lastRewardTime) < 3 days) {
-            return 60;
+        if (_timeSinceLastReward >= 3 days && _timeSinceLastReward < 4 days) {
+            _burnPercentage = 50;
         }
-        if (now.sub(lastRewardTime) < 4 days) {
-            return 50;
+        if (_timeSinceLastReward >= 4 days && _timeSinceLastReward < 5 days) {
+            _burnPercentage = 40;
         }
-        if (now.sub(lastRewardTime) < 5 days) {
-            return 30;
+        if (_timeSinceLastReward >= 5 days && _timeSinceLastReward < 6 days) {
+            _burnPercentage = 25;
         }
-        if (now.sub(lastRewardTime) < 6 days) {
-            return 15;
+        if (_timeSinceLastReward >= 6 days && _timeSinceLastReward < 7 days) {
+            _burnPercentage = 10;
         }
-        if (now.sub(lastRewardTime) < 7 days) {
-            return 0;
+        if (_timeSinceLastReward >= 7 days) {
+            _burnPercentage = 3;
         }
+        return _burnPercentage;
     }
 
     function _setRewards(uint256 _rewardAmmount) internal {
-        require(_playersFromPeriod.length > 0);
+        require(_totalRewardPart > 0 && _playersFromPeriod.length > 0);
+        // Reentry secure
+        uint256 _tempTotalRewardPart = _totalRewardPart;
+        _totalRewardPart = 0;
+
         for (uint8 i = 0; i < _playersFromPeriod.length; i++) {
-            uint256 personnalReward = (
-                _rewardAmmount.mul(myRewardPart[_playersFromPeriod[i]])
-            )
-                .div(totalRewardPart);
-            myRewardTokens[_playersFromPeriod[i]] = personnalReward;
-            myRewardPart[_playersFromPeriod[i]] = 0;
+            if (_myRewardPart[_playersFromPeriod[i]] > 0) {
+                // Reentry secure
+
+
+                    uint256 _myTempRewardPart
+                 = _myRewardPart[_playersFromPeriod[i]];
+                _myRewardPart[_playersFromPeriod[i]] = 0;
+
+
+                    uint256 _oldPersonnalReward
+                 = _myRewardTokens[_playersFromPeriod[i]];
+                _myRewardTokens[_playersFromPeriod[i]] = 0;
+
+                // Calculate personnal reward to add
+                uint256 personnalReward = (
+                    _rewardAmmount.mul(_myTempRewardPart)
+                )
+                    .div(_tempTotalRewardPart);
+
+                // Calculate personnal reward to add
+                _myRewardTokens[_playersFromPeriod[i]] = _oldPersonnalReward
+                    .add(personnalReward);
+            }
         }
-        totalRewardPart = 0;
     }
 
     function _deleteAllPlayersFromPeriod() internal {
         for (uint256 i = _playersFromPeriod.length - 1; i > 0; i--) {
-            myPeriodLoss[_playersFromPeriod[i]];
-            myPeriodBets[_playersFromPeriod[i]];
+            _myPeriodLoss[_playersFromPeriod[i]];
+            _myPeriodBets[_playersFromPeriod[i]];
             delete _playersFromPeriod[i];
         }
     }
 
-    function _transferToMatrixHolders(uint256 _amount) internal {
+    function _transferToMatrixRunners(uint256 _amount) internal {
         uint256 _toTransfer = _amount.div(3);
-        morpheus.transferFrom(address(this), _matrixHolders[0], _toTransfer);
-        morpheus.transferFrom(address(this), _matrixHolders[1], _toTransfer);
-        morpheus.transferFrom(address(this), _matrixHolders[2], _toTransfer);
+        morpheus.transferFrom(address(this), _matrixRunners[0], _toTransfer);
+        morpheus.transferFrom(address(this), _matrixRunners[1], _toTransfer);
+        morpheus.transferFrom(address(this), _matrixRunners[2], _toTransfer);
     }
 
     function _transferToKingOfMountain(uint256 _amount) internal {
-        morpheus.transferFrom(address(this), kingOfTheMountain, _amount);
+        require(kingOfTheMountain != address(0x0));
+        // Re entry secure
+        address _kingOfTheMountain = kingOfTheMountain;
         kingOfTheMountain = address(0x0);
+
+        morpheus.transferFrom(address(this), _kingOfTheMountain, _amount);
     }
 
     function _transferToKingOfLoosers(uint256 _amount) internal {
-        morpheus.transferFrom(address(this), kingOfLoosers, _amount);
-        kingOfLoosers = address(0x0);
+        require(kingOfLoosers != address(0x0));
+        // Re entry secure
+        address _kingOfLoosers = kingOfLoosers;
+        kingOfTheMountain = address(0x0);
+
+        morpheus.transferFrom(address(this), _kingOfLoosers, _amount);
     }
 
     // =========================================================================================
@@ -294,17 +428,18 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 _id2,
         uint256 _id3
     ) public {
-        require(rewardPool > 0);
+        require(_rewardPool > 0);
         require(
             rabbits.ownerOf(_id1) == msg.sender &&
                 rabbits.ownerOf(_id2) == msg.sender &&
                 rabbits.ownerOf(_id2) == msg.sender
         );
-        uint256 _rewardPool = rewardPool;
-        rewardPool = 0;
-        lastRewardTime = now;
-        morpheus.burnTokens(_rewardPool.div(2));
-        morpheus.transfer(msg.sender, _rewardPool.div(2));
+        uint256 _tempRewardPool = _rewardPool;
+        _rewardPool = 0;
+        _numberOfPeriod = _numberOfPeriod.add(1);
+        _lastRewardTime = now;
+        morpheus.burnTokens(_tempRewardPool.div(2));
+        morpheus.transfer(msg.sender, _tempRewardPool.div(2));
         rabbits.burnRabbitsTrilogy(msg.sender, _id1, _id2, _id3);
         _setRewards(0);
         _deleteAllPlayersFromPeriod();
