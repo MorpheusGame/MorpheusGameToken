@@ -81,7 +81,8 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 burntValue
     );
     event newKingOfTheMountain(address king);
-    event provableRandom(string _result);
+    event gotAPlayer(address _player, bytes32 _id);
+    event gotAResult(bytes32 _id, uint8 _result);
     
     
     // =========================================================================================
@@ -241,7 +242,9 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 _amount = amount*1E18;
         // We need some GAS for get a true random number provided by provable API
         require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
-        require(msg.value == 1 finney);
+        // 0 = Blue or 1 = Red
+        require(_choice == 0 || _choice == 1 );
+        require(msg.value == 4 finney);
         // First transfer tokens played in the contract
         morpheus.transferFrom(msg.sender, address(this), _amount);
          
@@ -267,6 +270,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         // get random with provable (arg1: delay, arg2: uintSize, arg3: GasPrice)
         bytes32 _id = provable_newRandomDSQuery(0, 8, 200000);
         gamesInstances[_id] = gameInstance(msg.sender, _choice, _amount);
+        emit gotAPlayer(msg.sender,_id);
     }
 
     // Call back function used by proableAPI
@@ -276,7 +280,6 @@ contract MorpheusGameController is Ownable, usingProvable {
         bytes memory _proof
     ) public {
         require(msg.sender == provable_cbAddress());
-        emit provableRandom(_result);
         
 
         // Check if return of provable is OK
@@ -297,7 +300,7 @@ contract MorpheusGameController is Ownable, usingProvable {
 
             // Transform _result provided by ProvableAPI in 0 or 1 to get color
             uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result)))) % 2;
-
+            emit gotAResult(_id, randomColor);
 
             // If color is the same played by player
             if (randomColor == gamesInstances[_id].choice) {
