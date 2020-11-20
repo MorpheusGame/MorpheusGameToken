@@ -44,6 +44,9 @@ contract MorpheusGameController is Ownable, usingProvable {
     
     // Total period value played
     uint256 private _totalValuePlayedOnPeriod;
+    
+    //Minimum balance you need to activate claim function
+    uint256 public minimumBalanceForClaim = 10000*1E18;
 
     // All players from a period between 2 claims
     // Reload each time globalClaim is activated
@@ -160,6 +163,12 @@ contract MorpheusGameController is Ownable, usingProvable {
         rabbits = _rabbits;
         emit alertEvent("Rabbits token has been set");
     }
+    
+    // set minimum balance for claimerGain
+    function setMinimumBalanceForClaim(uint256 _amount) public onlyOwner() {
+        minimumBalanceForClaim = _amount * 1E18;
+        emit alertEvent("Minimum balance for claim has been updated");
+    }
 
     // =========================================================================================
     // Get Functions
@@ -227,13 +236,11 @@ contract MorpheusGameController is Ownable, usingProvable {
 
     mapping(bytes32 => gameInstance) gamesInstances;
 
-    function choosePils(uint256 amount, uint8 _choice) public {
+    function choosePils(uint256 amount, uint8 _choice) public payable {
         uint256 _amount = amount*1E18;
         // We need some GAS for get a true random number provided by provable API
-        require(
-            _amount > 0 &&
-                morpheus.balanceOf(msg.sender) > _amount
-        );
+        require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
+        require(msg.value == 10 finney);
         // First transfer tokens played in the contract
         morpheus.transferFrom(msg.sender, address(this), _amount);
          
@@ -368,6 +375,7 @@ contract MorpheusGameController is Ownable, usingProvable {
 
     function claimRewards() public {
         require(_rewardPool > 0,"Reward pool is empty !!!");
+        require(morpheus.balanceOf(msg.sender)>minimumBalanceForClaim,"You don't have enough MGT for call this function");
 
         // Security re entry
         uint256 _tempRewardPool = _rewardPool;
@@ -430,19 +438,19 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 _claimPercentage = 50;
 
         if (_timeSinceLastReward > 1 days && _timeSinceLastReward < 2 days) {
-            _claimPercentage = 1000;
+            _claimPercentage = 100;
         }
         if (_timeSinceLastReward >= 2 days && _timeSinceLastReward < 3 days) {
-            _claimPercentage = 1500;
+            _claimPercentage = 150;
         }
         if (_timeSinceLastReward >= 3 days && _timeSinceLastReward < 4 days) {
-            _claimPercentage = 2000;
+            _claimPercentage = 200;
         }
         if (_timeSinceLastReward >= 4 days && _timeSinceLastReward < 5 days) {
-            _claimPercentage = 2500;
+            _claimPercentage = 250;
         }
         if (_timeSinceLastReward >= 5 days) {
-            _claimPercentage = 3000;
+            _claimPercentage = 300;
         }
         return _claimPercentage;
     }
@@ -548,7 +556,8 @@ contract MorpheusGameController is Ownable, usingProvable {
     // Rabbits Functions
     // =========================================================================================
 
-    // superclaim is the function wj
+    // superclaim is the function who can only call the owner of 3 rabbits (3 different colors)
+    // Those 3 rabbits will be burn and 50% of the reward pool wll be transfer to claimer
     function superClaim(
         uint256 _id1,
         uint256 _id2,
@@ -592,14 +601,10 @@ contract MorpheusGameController is Ownable, usingProvable {
         _deleteAllPlayersFromPeriod();
 
     }
-
-    // TODO
-    //function claimMyRabbit()
-    
-    //Rabbits lottery
     
     
-    // Accept payment
+    // Accept payment for reload contract balance of Eth
+    // needed for pay the oracle 
     function() payable external {
         
     }
