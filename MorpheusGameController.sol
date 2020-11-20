@@ -81,6 +81,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 burntValue
     );
     event newKingOfTheMountain(address king);
+    event provableRandom(string _result);
     
     
     // =========================================================================================
@@ -240,7 +241,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 _amount = amount*1E18;
         // We need some GAS for get a true random number provided by provable API
         require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
-        require(msg.value == 10 finney);
+        require(msg.value == 1 finney);
         // First transfer tokens played in the contract
         morpheus.transferFrom(msg.sender, address(this), _amount);
          
@@ -275,6 +276,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         bytes memory _proof
     ) public {
         require(msg.sender == provable_cbAddress());
+        emit provableRandom(_result);
         
 
         // Check if return of provable is OK
@@ -293,11 +295,9 @@ contract MorpheusGameController is Ownable, usingProvable {
             //proof is good
             require(gamesInstances[_id].player != address(0x0));
 
-            // Transform _result provided by PravableAPI in 0 or 1 to get color
-            uint8 randomColor = uint8(
-                uint256(keccak256(abi.encodePacked(_result)))
-            ) % 2;
-            
+            // Transform _result provided by ProvableAPI in 0 or 1 to get color
+            uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result)))) % 2;
+
 
             // If color is the same played by player
             if (randomColor == gamesInstances[_id].choice) {
@@ -305,7 +305,7 @@ contract MorpheusGameController is Ownable, usingProvable {
                 morpheus.mintTokensForWinner(gamesInstances[_id].amount);
                 //Then send it to player
                 morpheus.transfer(
-                    msg.sender,
+                    gamesInstances[_id].player,
                     gamesInstances[_id].amount.mul(2)
                 );
                 emit winAlert(msg.sender,gamesInstances[_id].amount.mul(2));
