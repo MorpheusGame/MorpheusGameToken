@@ -1,10 +1,11 @@
 pragma solidity 0.5.17;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721Full.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721Burnable.sol";
-import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "./ERC721Full.sol";
+import "./Ownable.sol";
 
-contract Rabbits is ERC721Full, ERC721Burnable, Ownable {
+//NFT Contract
+
+contract Rabbits is ERC721Full, Ownable {
     // All 160 Rabbits got color White, Blue and Red
     mapping(uint256 => string) public colorRabbit;
 
@@ -14,18 +15,18 @@ contract Rabbits is ERC721Full, ERC721Burnable, Ownable {
     constructor() public ERC721Full("RabbitsToken", "RBTS") {
         // Rabbits Colors init
 
-        // id 0 to 9 (10 Rabbits) are "White Rabbits"
-        for (uint8 i = 0; i < 9; i++) {
+        // id 1 to 10 (10 Rabbits) are "White Rabbits"
+        for (uint8 i = 1; i < 10; i++) {
             colorRabbit[i] = "White";
         }
 
-        // id 10 to 59 (50 Rabbits) are "Blue Rabbits"
-        for (uint8 i = 10; i < 59; i++) {
+        // id 11 to 60 (50 Rabbits) are "Blue Rabbits"
+        for (uint8 i = 11; i < 60; i++) {
             colorRabbit[i] = "Blue";
         }
 
-        // id 60 to 159 (100 Rabbits) are "Red Rabbits"
-        for (uint8 i = 60; i < 159; i++) {
+        // id 61 to 160 (100 Rabbits) are "Red Rabbits"
+        for (uint8 i = 61; i < 160; i++) {
             colorRabbit[i] = "Red";
         }
     }
