@@ -241,10 +241,12 @@ contract MorpheusGameController is Ownable, usingProvable {
     function choosePils(uint256 amount, uint8 _choice) public payable {
         uint256 _amount = amount*1E18;
         // We need some GAS for get a true random number provided by provable API
+        require(msg.value == 4 finney);
+        // Need to have found amount
         require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
         // 0 = Blue or 1 = Red
         require(_choice == 0 || _choice == 1 );
-        require(msg.value == 4 finney);
+
         // First transfer tokens played in the contract
         morpheus.transferFrom(msg.sender, address(this), _amount);
          
@@ -279,7 +281,12 @@ contract MorpheusGameController is Ownable, usingProvable {
         string memory _result,
         bytes memory _proof
     ) public {
+        // Only provable address can call this function
         require(msg.sender == provable_cbAddress());
+        
+        // using a copy of gameInstance for security reentry
+        gameInstance storage _instance = gamesInstances[_id];
+        delete gamesInstances[_id];
         
 
         // Check if return of provable is OK
@@ -287,50 +294,50 @@ contract MorpheusGameController is Ownable, usingProvable {
             provable_randomDS_proofVerify__returnCode(_id, _result, _proof) != 0
         ) {
             //proof is bad
-            //return original payment to player
+            //return original payment to player and cancel the playing instance
             morpheus.transferFrom(
                 address(this),
-                gamesInstances[_id].player,
-                gamesInstances[_id].amount
+                _instance.player,
+                _instance.amount
             );
             emit alertEvent("Provable Random is corrupted");
         } else {
             //proof is good
-            require(gamesInstances[_id].player != address(0x0));
+            require(_instance.player != address(0x0));
 
             // Transform _result provided by ProvableAPI in 0 or 1 to get color
             uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result)))) % 2;
             emit gotAResult(_id, randomColor);
 
             // If color is the same played by player
-            if (randomColor == gamesInstances[_id].choice) {
+            if (randomColor == _instance.choice) {
                 //Mint token in contract 
-                morpheus.mintTokensForWinner(gamesInstances[_id].amount);
+                morpheus.mintTokensForWinner(_instance.amount);
                 //Then send it to player
                 morpheus.transfer(
-                    gamesInstances[_id].player,
-                    gamesInstances[_id].amount.mul(2)
+                    _instance.player,
+                    _instance.amount.mul(2)
                 );
-                emit winAlert(msg.sender,gamesInstances[_id].amount.mul(2));
+                emit winAlert(_instance.player,_instance.amount.mul(2));
                     
             //If player loose
             } else {
                 // Update loss of player
-                _myPeriodLoss[gamesInstances[_id].player] = (_myPeriodLoss[gamesInstances[_id].player]).add(gamesInstances[_id].amount);
+                _myPeriodLoss[_instance.player] = (_myPeriodLoss[_instance.player]).add(_instance.amount);
     
                 // Update reward pool
-                _rewardPool = _rewardPool.add(gamesInstances[_id].amount);
+                _rewardPool = _rewardPool.add(_instance.amount);
                 
                 //Update total part
-                _totalRewardPart = _totalRewardPart.add(gamesInstances[_id].amount);
+                _totalRewardPart = _totalRewardPart.add(_instance.amount);
     
                 // Update personnal Proportionnal reward (counter) for player
-                _myRewardPart[gamesInstances[_id].player] = _myRewardPart[gamesInstances[_id].player].add(gamesInstances[_id].amount);
+                _myRewardPart[_instance.player] = _myRewardPart[_instance.player].add(_instance.amount);
     
-                emit lostAlert(gamesInstances[_id].player, gamesInstances[_id].amount);
+                emit lostAlert(_instance.player, _instance.amount);
                 
             }
-            delete gamesInstances[_id];
+
         }
     }
     
