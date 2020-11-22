@@ -153,6 +153,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     function setMatrix(address _matrixRunner) public onlyOwner() {
         _matrixRunners.push(_matrixRunner);
     }
+    
 
     // Set the MorpheusToken address
     function setMorpheusToken(MorpheusToken _morpheusToken) public onlyOwner() {
@@ -284,11 +285,6 @@ contract MorpheusGameController is Ownable, usingProvable {
         // Only provable address can call this function
         require(msg.sender == provable_cbAddress());
         
-        // using a copy of gameInstance for security reentry
-        gameInstance storage _instance = gamesInstances[_id];
-        delete gamesInstances[_id];
-        
-
         // Check if return of provable is OK
         if (
             provable_randomDS_proofVerify__returnCode(_id, _result, _proof) != 0
@@ -297,48 +293,49 @@ contract MorpheusGameController is Ownable, usingProvable {
             //return original payment to player and cancel the playing instance
             morpheus.transferFrom(
                 address(this),
-                _instance.player,
-                _instance.amount
+                gamesInstances[_id].player,
+                gamesInstances[_id].amount
             );
             emit alertEvent("Provable Random is corrupted");
         } else {
             //proof is good
-            require(_instance.player != address(0x0));
+            require(gamesInstances[_id].player != address(0x0));
 
             // Transform _result provided by ProvableAPI in 0 or 1 to get color
             uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result)))) % 2;
             emit gotAResult(_id, randomColor);
 
             // If color is the same played by player
-            if (randomColor == _instance.choice) {
+            if (randomColor == gamesInstances[_id].choice) {
                 //Mint token in contract 
-                morpheus.mintTokensForWinner(_instance.amount);
+                morpheus.mintTokensForWinner(gamesInstances[_id].amount);
                 //Then send it to player
                 morpheus.transfer(
-                    _instance.player,
-                    _instance.amount.mul(2)
+                    gamesInstances[_id].player,
+                    gamesInstances[_id].amount.mul(2)
                 );
-                emit winAlert(_instance.player,_instance.amount.mul(2));
+                emit winAlert(gamesInstances[_id].player,gamesInstances[_id].amount.mul(2));
                     
             //If player loose
             } else {
                 // Update loss of player
-                _myPeriodLoss[_instance.player] = (_myPeriodLoss[_instance.player]).add(_instance.amount);
+                _myPeriodLoss[gamesInstances[_id].player] = (_myPeriodLoss[gamesInstances[_id].player]).add(gamesInstances[_id].amount);
     
                 // Update reward pool
-                _rewardPool = _rewardPool.add(_instance.amount);
+                _rewardPool = _rewardPool.add(gamesInstances[_id].amount);
                 
                 //Update total part
-                _totalRewardPart = _totalRewardPart.add(_instance.amount);
+                _totalRewardPart = _totalRewardPart.add(gamesInstances[_id].amount);
     
                 // Update personnal Proportionnal reward (counter) for player
-                _myRewardPart[_instance.player] = _myRewardPart[_instance.player].add(_instance.amount);
+                _myRewardPart[gamesInstances[_id].player] = _myRewardPart[gamesInstances[_id].player].add(gamesInstances[_id].amount);
     
-                emit lostAlert(_instance.player, _instance.amount);
+                emit lostAlert(gamesInstances[_id].player, gamesInstances[_id].amount);
                 
             }
 
         }
+        delete gamesInstances[_id];
     }
     
 
@@ -442,7 +439,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         morpheus.transfer(msg.sender, _myTempRewardTokens);
     }
     
-    function _getClaimerPercentage() internal view returns (uint256) {
+    function _getClaimerPercentage() public view returns (uint256) {
         uint256 _timeSinceLastReward = now.sub(_lastRewardTime);
         // 50 meens 0.5% => it will be divid by 10000
         uint256 _claimPercentage = 50;
@@ -465,7 +462,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         return _claimPercentage;
     }
 
-    function _getBurnPercentage() internal view returns (uint256) {
+    function _getBurnPercentage() public view returns (uint256) {
         uint256 _timeSinceLastReward = now.sub(_lastRewardTime);
         uint256 _burnPercentage = 8000;
 
@@ -493,7 +490,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         return _burnPercentage;
     }
 
-    function _setRewards(uint256 _rewardAmmount) internal {
+    function _setRewards(uint256 _rewardAmmount) private {
         require(_totalRewardPart > 0 && _playersFromPeriod.length > 0);
         // Reentry secure
         uint256 _tempTotalRewardPart = _totalRewardPart.mul(100);
@@ -526,7 +523,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     }
 
     // update players of the period
-    function _deleteAllPlayersFromPeriod() internal {
+    function _deleteAllPlayersFromPeriod() private {
         for (uint256 i = 0; i < _playersFromPeriod.length; i++) {
             _myPeriodLoss[_playersFromPeriod[i]] = 0;
             _myPeriodBets[_playersFromPeriod[i]] = 0;
@@ -535,7 +532,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         _playersFromPeriod =_newArray;
     }
 
-    function _transferToMatrixRunners(uint256 _amount) internal {
+    function _transferToMatrixRunners(uint256 _amount) private {
         // To be sure to have a valid uint we substract modulo of matrixRunners number to amount
         uint256 amountModuloRunnersNumber = _amount.sub(_amount % _matrixRunners.length);
         uint256 _toTransfer = amountModuloRunnersNumber.div(_matrixRunners.length);
@@ -547,7 +544,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         }
     }
 
-    function _transferToKingOfMountain(uint256 _amount) internal {
+    function _transferToKingOfMountain(uint256 _amount) private {
         require(kingOfTheMountain != address(0x0), "There is no king of the mountain ");
         // Re entry secure
         address _kingOfTheMountain = kingOfTheMountain;
@@ -556,7 +553,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         morpheus.transfer(_kingOfTheMountain, _amount);
     }
 
-    function _transferToKingOfLoosers(uint256 _amount) internal {
+    function _transferToKingOfLoosers(uint256 _amount) private {
         if(_getKingOfLoosers() != address(0x0)){
             morpheus.transfer(_getKingOfLoosers(), _amount);           
         }
@@ -618,5 +615,6 @@ contract MorpheusGameController is Ownable, usingProvable {
     function() payable external {
         
     }
+    
 
 }
