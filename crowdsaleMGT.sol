@@ -8,7 +8,7 @@ import "./TimedCrowdsale.sol";
 import "./MorpheusToken.sol";
 import "./MintedCrowdsale.sol";
 
-contract ICO is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowdsale{
+contract CrowdsaleMGT is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowdsale{
     
 
     constructor()
