@@ -20,12 +20,16 @@ contract MorpheusGameController is Ownable, usingProvable {
         setMorpheusToken(_morpheusToken);
         // init first instance of game
         _lastRewardTime = now;
+        beginningTime = now;
         provable_setProof(proofType_Ledger);
     }
 
     // Tokens used in game
     MorpheusToken public morpheus;
     Rabbits public rabbits;
+    
+    // Beginning game time
+    uint256 public beginningTime;
 
     // Rewards
     uint256 private _lastRewardTime;
@@ -571,6 +575,8 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 _id3
     ) public {
         require(_rewardPool > 0, "There is no reward on pool");
+        // Can't be called before 30 days 
+        require(now.sub(beginningTime) >= 30 days);
         require(
             (rabbits.ownerOf(_id1) == msg.sender &&
             rabbits.ownerOf(_id2) == msg.sender &&
