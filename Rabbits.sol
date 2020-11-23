@@ -9,8 +9,10 @@ contract Rabbits is ERC721Full, Ownable {
     // All 160 Rabbits got color White, Blue and Red
     mapping(uint256 => string) public colorRabbit;
 
-    // Only gameAddress can mint Rabbits
+    // Only gameAddress can burn Rabbits
     address public gameControllerAddress;
+    // Only farming can mint Rabbits
+    address public farmControllerAddress;
 
     constructor() public ERC721Full("RabbitsToken", "RBTS") {
         // Rabbits Colors init
@@ -35,18 +37,33 @@ contract Rabbits is ERC721Full, Ownable {
         require(msg.sender == gameControllerAddress);
         _;
     }
+    
+    modifier onlyFarmingController() {
+        require(msg.sender == farmControllerAddress);
+        _;
+    }
 
     // events for prevent Players from any change
     event GameAddressChanged(address newGameAddress);
+    
+    // events for prevent Players from any change
+    event FarmAddressChanged(address newFarmAddress);
+    
 
     // init game smart contract address
     function setGameAddress(address _gameAddress) public onlyOwner() {
         gameControllerAddress = _gameAddress;
         emit GameAddressChanged(_gameAddress);
     }
+    
+        // init game smart contract address
+    function setFarmingAddress(address _farmAddress) public onlyOwner() {
+        farmControllerAddress = _farmAddress;
+        emit FarmAddressChanged(_farmAddress);
+    }
 
     // Function that only game smart contract address can call for mint a Rabbit
-    function mintRabbit(address _to, uint256 _id) public onlyGameController() {
+    function mintRabbit(address _to, uint256 _id) public onlyFarmingController() {
         _mint(_to, _id);
     }
 
