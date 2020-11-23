@@ -4,13 +4,14 @@ pragma solidity ^0.5.0;
 import "./ERC20.sol";
 import "./ERC20Detailed.sol";
 import "./ERC20Mintable.sol";
+import "./ERC20Capped.sol";
 
-contract MorpheusToken is ERC20, ERC20Detailed, ERC20Mintable {
+contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
     
     address public deployerAddress;
     address public gameControllerAddress;
     
-    constructor(address _deployer) public ERC20Detailed("MorpheusGameToken", "MGT", 18) {
+    constructor(address _deployer) public ERC20Detailed("MorpheusGameToken", "MGT", 18) ERC20Capped(500000000*1E18) {
               deployerAddress =_deployer;
     }
 
