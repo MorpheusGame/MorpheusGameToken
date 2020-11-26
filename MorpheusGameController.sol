@@ -295,8 +295,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         ) {
             //proof is bad
             //return original payment to player and cancel the playing instance
-            morpheus.transferFrom(
-                address(this),
+            morpheus.transfer(
                 gamesInstances[_id].player,
                 gamesInstances[_id].amount
             );
@@ -400,17 +399,17 @@ contract MorpheusGameController is Ownable, usingProvable {
         // First rewarding kings and claimer
         uint256 rewardForKings = (_tempRewardPool.mul(100)).div(10000);
         _transferToKingOfMountain(rewardForKings);
-        _transferToKingOfLoosers(rewardForKings);
+        
+        // It is possible there is no king of loosers 
+        if(_getKingOfLoosers() != address(0x0)){
+            _transferToKingOfLoosers(rewardForKings);
+        }
+
         
         // Because solidity don't know floating number, 0.5 % will be 50/10000
         uint256 _claimerPercentage = _getClaimerPercentage();
         uint256 rewardForClaimer = (_tempRewardPool.mul(_claimerPercentage)).div(10000);
         morpheus.transfer(msg.sender, rewardForClaimer);
-
-        // updating reward pool
-        _tempRewardPool = _tempRewardPool.sub(rewardForKings);
-        _tempRewardPool = _tempRewardPool.sub(rewardForKings);
-        _tempRewardPool = _tempRewardPool.sub(rewardForClaimer);
 
         // then Burning
         uint256 burnPercentage = _getBurnPercentage();
@@ -419,6 +418,12 @@ contract MorpheusGameController is Ownable, usingProvable {
         _totalValueBurned = _totalValueBurned.add(totalToBurn);
 
         // Update temp reward pool
+        // If there is there is king of loosers
+        if(_getKingOfLoosers() != address(0x0)){
+            _tempRewardPool = _tempRewardPool.sub(rewardForKings);
+        }
+        _tempRewardPool = _tempRewardPool.sub(rewardForKings);
+        _tempRewardPool = _tempRewardPool.sub(rewardForClaimer);
         _tempRewardPool = _tempRewardPool.sub(totalToBurn);
 
         // Matrix rewards 2%
@@ -468,28 +473,22 @@ contract MorpheusGameController is Ownable, usingProvable {
 
     function _getBurnPercentage() public view returns (uint256) {
         uint256 _timeSinceLastReward = now.sub(_lastRewardTime);
-        uint256 _burnPercentage = 8000;
+        uint256 _burnPercentage = 8950;
 
         if (_timeSinceLastReward > 1 days && _timeSinceLastReward < 2 days) {
-            _burnPercentage = 7000;
+            _burnPercentage = 7900;
         }
         if (_timeSinceLastReward >= 2 days && _timeSinceLastReward < 3 days) {
-            _burnPercentage = 6000;
+            _burnPercentage = 6850;
         }
         if (_timeSinceLastReward >= 3 days && _timeSinceLastReward < 4 days) {
-            _burnPercentage = 5000;
+            _burnPercentage = 5800;
         }
         if (_timeSinceLastReward >= 4 days && _timeSinceLastReward < 5 days) {
-            _burnPercentage = 4000;
+            _burnPercentage = 4750;
         }
-        if (_timeSinceLastReward >= 5 days && _timeSinceLastReward < 6 days) {
-            _burnPercentage = 2500;
-        }
-        if (_timeSinceLastReward >= 6 days && _timeSinceLastReward < 7 days) {
-            _burnPercentage = 1000;
-        }
-        if (_timeSinceLastReward >= 7 days) {
-            _burnPercentage = 300;
+        if (_timeSinceLastReward >= 5 days ) {
+            _burnPercentage = 3700;
         }
         return _burnPercentage;
     }
