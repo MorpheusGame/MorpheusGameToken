@@ -115,7 +115,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     
     // set minimum balance for claimerGain
     function setMinimumBalanceForClaim(uint256 _amount) public onlyOwner() {
-        minimumBalanceForClaim = _amount * 1E18;
+        minimumBalanceForClaim = _amount.mul(1E18);
         emit alertEvent("Minimum balance for claim has been updated");
     }
 
@@ -186,7 +186,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     mapping(bytes32 => gameInstance) gamesInstances;
 
     function choosePils(uint256 amount, uint8 _choice) public payable {
-        uint256 _amount = amount*1E18;
+        uint256 _amount = amount.mul(1E18);
         // We need some GAS for get a true random number provided by provable API
         require(msg.value == 4 finney);
         // Need to have found amount
