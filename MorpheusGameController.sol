@@ -7,6 +7,8 @@ import "./MorpheusToken.sol";
 import "./Rabbits.sol";
 
 // GameController Contract
+// It is a ownable contract. It meens that some function can only be call by the owner/creator of contract
+// Ownable will be transfer to a DAO after 3 months of production
 
 contract MorpheusGameController is Ownable, usingProvable {
     using SafeMath for uint256;
@@ -88,69 +90,9 @@ contract MorpheusGameController is Ownable, usingProvable {
     event gotAPlayer(address _player, bytes32 _id);
     event gotAResult(bytes32 _id, uint8 _result);
     
-    
-    // =========================================================================================
-    // TESTS Functions
-    // =========================================================================================
- 
-   // Play function without random for testing contract
- /*   function play(uint256 amount, uint8 _choice) public {
-        uint256 _amount = amount * 1E18;
-        require(morpheus.balanceOf(msg.sender) >= _amount);
-
-        //first transfer amount of playing tokens
-        morpheus.transferFrom(msg.sender, address(this), _amount);
-
-        // Add player to list
-        if (!_isPlayerInList(msg.sender)) {
-            _playersFromPeriod.push(msg.sender);
-        }
-
-        // Update total value played by all players
-        _totalValuePlayed = _totalValuePlayed.add(_amount);
-
-        _totalValuePlayedOnPeriod = _totalValuePlayedOnPeriod.add(_amount);
-
-        // Update value of total played by the player
-        _myPeriodBets[msg.sender] = _myPeriodBets[msg.sender].add(_amount);
-
-        // Update king of the mountain if needed
-        if (_myPeriodBets[msg.sender] > _myPeriodBets[kingOfTheMountain]) {
-            kingOfTheMountain = msg.sender;
-            emit newKingOfTheMountain(msg.sender);
-        }
-
-        if ((now % 2) == _choice) {
-            //Mint token in contract
-            morpheus.mintTokensForWinner(_amount);
-            //Then send it to player
-            morpheus.transfer(msg.sender, _amount.mul(2));
-            emit winAlert(msg.sender, _amount.mul(2));
-        } else {
-            // Update loss of player
-            _myPeriodLoss[msg.sender] = _myPeriodLoss[msg.sender].add(_amount);
-
-            // Update reward pool
-            _rewardPool = _rewardPool.add(_amount);
-
-            //Update total part
-            _totalRewardPart = _totalRewardPart.add(_amount);
-
-            // Update personnal Proportionnal reward (counter) for player
-            _myRewardPart[msg.sender] = _myRewardPart[msg.sender].add(_amount);
-
-            emit lostAlert(msg.sender, _amount);
-        }
-    }
-
-    
-    */
-    
-
-    
 
     // =========================================================================================
-    // Settings Functions
+    // Settings Functions Functions that only owner can call
     // =========================================================================================
 
     // set matrix Runners Addresses
@@ -568,6 +510,7 @@ contract MorpheusGameController is Ownable, usingProvable {
 
     // superclaim is the function who can only call the owner of 3 rabbits (3 different colors)
     // Those 3 rabbits will be burn and 50% of the reward pool wll be transfer to claimer
+    // Rabbits must be approvedForAll by the owner for contract of gameAddress
     function superClaim(
         uint256 _id1,
         uint256 _id2,
