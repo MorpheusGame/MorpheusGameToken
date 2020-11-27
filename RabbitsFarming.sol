@@ -20,20 +20,20 @@ contract RabbitsFarming is Ownable {
     }
     
     // Rabbits farming variable
-    mapping(uint8 => bool) public canBeFarmed;
-    mapping(uint8 => bool) public farmed;
+    mapping(uint256 => bool) public canBeFarmed;
+    mapping(uint256 => bool) public farmed;
     // Rabbit who is farming
-    mapping(uint8 => bool) public onFarming;
+    mapping(uint256 => bool) public onFarming;
     // address who farm the rabbit
-    mapping(uint8 => address) private _farmingBy;
+    mapping(uint256 => address) private _farmingBy;
     
     // Time for farming
     uint256 public whiteRabbitsFarmingTime = 30 days;
     uint256 public blueRabbitsFarmingTime = 20 days;
     uint256 public redRabbitsFarmingTime = 10 days;
     
-    // Amount for farming
-    uint256 public amountForWhiteRabbits = 50000;
+    // Amount for farming Values will and can change 
+    uint256 public amountForWhiteRabbits = 50000; 
     uint256 public amountForBlueRabbits = 20000;
     uint256 public amountForRedRabbits = 10000;
  
@@ -90,10 +90,11 @@ contract RabbitsFarming is Ownable {
     // Setting Rabbits ID can be farmed
     // =========================================================================================
 
-    function setRabbitIdCanBeFarmed(uint8 _id, bool _status) public onlyOwner(){
+    // Create a spot for a rabbit who can be farmed
+    function setRabbitIdCanBeFarmed(uint256 _id) public onlyOwner(){
         require(_id>=1 && _id<=160);
         require(farmed[_id] == false,"Already farmed");
-        canBeFarmed[_id] = _status;
+        canBeFarmed[_id] = true;
     }
     
     // =========================================================================================
@@ -110,34 +111,38 @@ contract RabbitsFarming is Ownable {
     // 1 address can only farmed 1 rabbit for a period
     mapping(address => farmingInstance) public farmingInstances;
 
+    // init a farming 
     function farmingRabbit(uint8 _id, uint256 _amount) public{
         require(canBeFarmed[_id] == true,"This Rabbit can't be farmed");
         require(_amount == _rabbitAmount(_id), "Value isn't good");
         canBeFarmed[_id] = false;
-        morpheus.transferFrom(msg.sender,address(this),_amount * 1E18);
+        morpheus.transferFrom(msg.sender,address(this),_amount.mul(1E18));
         farmingInstances[msg.sender] = farmingInstance(_id,now,_amount,true);
  
     }
     
+    // cancel my farming instance
     function renounceFarming() public {
         require(farmingInstances[msg.sender].isActive == true, "You don't have any farming instance");
-        morpheus.transferFrom(address(this),msg.sender,farmingInstances[msg.sender].amount * 1E18);
+        morpheus.transferFrom(address(this),msg.sender,farmingInstances[msg.sender].amount.mul(1E18));
         canBeFarmed[farmingInstances[msg.sender].rabbitId] = false;
         delete farmingInstances[msg.sender];
         
     }
     
-    function getRabbit() public {
+    // Claim rabbit at the end of farming
+    function claimRabbit() public {
         require(farmingInstances[msg.sender].isActive == true, "You don't have any farming instance");
         require(now.sub(farmingInstances[msg.sender].farmingBeginningTime) >= _rabbitDuration(farmingInstances[msg.sender].rabbitId));
         
-        morpheus.burnTokens(farmingInstances[msg.sender].amount);
+        morpheus.transferFrom(address(this),msg.sender,farmingInstances[msg.sender].amount.mul(1E18));
         farmed[farmingInstances[msg.sender].rabbitId] = true;
         rabbits.mintRabbit(msg.sender, farmingInstances[msg.sender].rabbitId);
         delete farmingInstances[msg.sender];
     }
     
-    function _rabbitAmount(uint8 _id) private view returns(uint256){
+    // function allow to now the necessary amount for the Rabbit farming
+    function _rabbitAmount(uint256 _id) private view returns(uint256){
         // function will return amount needed to farm rabbit
         uint256 _amount;
         if(_id >= 1 && _id <= 10){
@@ -150,7 +155,8 @@ contract RabbitsFarming is Ownable {
         return _amount;
     }
     
-    function _rabbitDuration(uint8 _id) private view returns(uint256){
+     // function allow to now the necessary time for the Rabbit farming
+    function _rabbitDuration(uint256 _id) private view returns(uint256){
         // function will return amount needed to farm rabbit
         uint256 _duration;
         if(_id >= 1 && _id <= 10){
@@ -164,7 +170,7 @@ contract RabbitsFarming is Ownable {
     }
     
     // winner of contests will receive rabbits
-    function mintRabbitFor(uint8 _id, address _winner ) public onlyOwner(){
+    function mintRabbitFor(uint256 _id, address _winner ) public onlyOwner(){
         require(farmed[_id]==false);
         farmed[_id] = true;
         rabbits.mintRabbit(_winner,_id);
