@@ -44,7 +44,7 @@ contract MarketPlace is Ownable {
 
     //Counter
     uint256 onSaleQuantity = 0;
-    uint256[] tokensOnSale;
+    uint256[] public tokensOnSale;
 
     struct sellInstance{
         uint256 tokenId;
