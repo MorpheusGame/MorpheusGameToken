@@ -18,17 +18,17 @@ contract Rabbits is ERC721Full, Ownable {
         // Rabbits Colors init
 
         // id 1 to 10 (10 Rabbits) are "White Rabbits"
-        for (uint8 i = 1; i < 10; i++) {
+        for (uint256 i = 1; i < 10; i++) {
             colorRabbit[i] = "White";
         }
 
         // id 11 to 60 (50 Rabbits) are "Blue Rabbits"
-        for (uint8 i = 11; i < 60; i++) {
+        for (uint256 i = 11; i < 60; i++) {
             colorRabbit[i] = "Blue";
         }
 
         // id 61 to 160 (100 Rabbits) are "Red Rabbits"
-        for (uint8 i = 61; i < 160; i++) {
+        for (uint256 i = 61; i < 160; i++) {
             colorRabbit[i] = "Red";
         }
     }
@@ -56,18 +56,19 @@ contract Rabbits is ERC721Full, Ownable {
         emit GameAddressChanged(_gameAddress);
     }
     
-        // init game smart contract address
+        // init farming smart contract address
     function setFarmingAddress(address _farmAddress) public onlyOwner() {
         farmControllerAddress = _farmAddress;
         emit FarmAddressChanged(_farmAddress);
     }
 
-    // Function that only game smart contract address can call for mint a Rabbit
+    // Function that only farming smart contract address can call for mint a Rabbit
     function mintRabbit(address _to, uint256 _id) public onlyFarmingController() {
         _mint(_to, _id);
     }
 
     // Function that only game smart contract address can call for burn Rabbits trilogy
+    // Rabbits must be approvedForAll by the owner for contract of gameAddress
     function burnRabbitsTrilogy(
         address _ownerOfRabbit,
         uint256 _id1,
