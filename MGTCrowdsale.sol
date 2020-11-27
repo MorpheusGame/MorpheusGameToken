@@ -1,6 +1,6 @@
 pragma solidity 0.5.17;
 
-// ICO Contract
+// Crowdsale Contract
 
 import "./Crowdsale.sol";
 import "./CappedCrowdsale.sol";
@@ -8,7 +8,7 @@ import "./TimedCrowdsale.sol";
 import "./MorpheusToken.sol";
 import "./MintedCrowdsale.sol";
 
-contract CrowdsaleMGT is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowdsale{
+contract MGTCrowdsale is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowdsale{
     
 
     constructor()
