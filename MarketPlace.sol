@@ -53,7 +53,7 @@ contract MarketPlace is Ownable {
         address owner;
     }
     
-    mapping(uint256 => sellInstance) sellsInstances;
+    mapping(uint256 => sellInstance) public sellsInstances;
     
     // sell myrabbit
     function sellingMyRabbit(uint256 _tokenId, uint256 _amountAsked) public {
