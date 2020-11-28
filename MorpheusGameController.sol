@@ -218,6 +218,10 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint8 choice;
         uint256 amount;
     }
+    
+    // Variable used for prevent any claim before gameInstance isn't finished
+    // meens the time before the choose pills action and the return of oracle random number
+    uint256 public gameInstanceNumber = 0;
 
     mapping(bytes32 => gameInstance) gamesInstances;
 
@@ -232,6 +236,9 @@ contract MorpheusGameController is Ownable, usingProvable {
 
         // First transfer tokens played in the contract
         morpheus.transferFrom(msg.sender, address(this), _amount);
+        
+        // Add 1 to game instances number
+        gameInstanceNumber = gameInstanceNumber.add(1);
          
         // Add player to list
         if(!_isPlayerInList(msg.sender)){
@@ -317,6 +324,7 @@ contract MorpheusGameController is Ownable, usingProvable {
 
         }
         delete gamesInstances[_id];
+        gameInstanceNumber = gameInstanceNumber.sub(1);
     }
     
 
@@ -362,6 +370,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     // =========================================================================================
 
     function claimRewards() public {
+        require(gameInstanceNumber == 0, "There is a game instance pending please wait");
         require(_rewardPool > 0,"Reward pool is empty !!!");
         require(morpheus.balanceOf(msg.sender)>minimumBalanceForClaim,"You don't have enough MGT for call this function");
 
@@ -570,6 +579,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         uint256 _id2,
         uint256 _id3
     ) public {
+        require(gameInstanceNumber == 0, "There is a game instance pending please wait");
         require(_rewardPool > 0, "There is no reward on pool");
         // Can't be called before 30 days 
         require(now.sub(beginningTime) >= timeBeforeSuperClaim);
