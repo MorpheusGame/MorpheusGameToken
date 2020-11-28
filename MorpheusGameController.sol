@@ -13,11 +13,9 @@ import "./Rabbits.sol";
 contract MorpheusGameController is Ownable, usingProvable {
     using SafeMath for uint256;
     
-        constructor(MorpheusToken _morpheusToken)
+    constructor(MorpheusToken _morpheusToken)
         public
     {
-        //init matrix holder 1 
-        setMatrix(msg.sender);
         //init Morpheus token address
         setMorpheusToken(_morpheusToken);
         // init first instance of game
@@ -58,8 +56,8 @@ contract MorpheusGameController is Ownable, usingProvable {
     // Reload each time globalClaim is activated
     address[] public _playersFromPeriod;
 
-    // Addresses of MatrixRunners
-    address[] private _matrixRunners;
+    // Addresses of Zion stackers. 
+    address[] private _zionStackers;
 
     // Reward part for each players, used for calculate proportion reward
     mapping(address => uint256) private _myRewardPart;
@@ -92,13 +90,8 @@ contract MorpheusGameController is Ownable, usingProvable {
     
 
     // =========================================================================================
-    // Settings Functions Functions that only owner can call
+    // Settings Functions  that only owner can call
     // =========================================================================================
-
-    // set matrix Runners Addresses
-    function setMatrix(address _matrixRunner) public onlyOwner() {
-        _matrixRunners.push(_matrixRunner);
-    }
     
 
     // Set the MorpheusToken address
@@ -118,6 +111,25 @@ contract MorpheusGameController is Ownable, usingProvable {
         minimumBalanceForClaim = _amount.mul(1E18);
         emit alertEvent("Minimum balance for claim has been updated");
     }
+    
+    // =========================================================================================
+    // Zion stackers
+    // =========================================================================================
+    
+    uint256 _zionStackingValue = 50000;
+
+    // add Zion stacker Addresse
+    function becomeZionStacker(address _zionStacker) public {
+        _zionStackers.push(_zionStacker);
+    }
+    
+    // reload Zion stackers
+    function _eraseZionStackers() private {
+        address[] memory _emptyArray;
+        _zionStackers = _emptyArray;
+    }
+    
+ 
 
     // =========================================================================================
     // Get Functions
@@ -368,12 +380,12 @@ contract MorpheusGameController is Ownable, usingProvable {
         _tempRewardPool = _tempRewardPool.sub(rewardForClaimer);
         _tempRewardPool = _tempRewardPool.sub(totalToBurn);
 
-        // Matrix rewards 2%
-        uint256 rewardForMatrix = (_tempRewardPool.mul(200)).div(10000);
-        _transferToMatrixRunners(rewardForMatrix);
+        // Zion stackers rewards 2%
+        uint256 rewardForZionStackers = (_tempRewardPool.mul(200)).div(10000);
+        _transferToZionStackers(rewardForZionStackers);
 
         // update _rewardPool
-        _tempRewardPool = _tempRewardPool.sub(rewardForMatrix);
+        _tempRewardPool = _tempRewardPool.sub(rewardForZionStackers);
 
         // Update rewards and refresh period .
         _setRewards(_tempRewardPool);
@@ -477,13 +489,13 @@ contract MorpheusGameController is Ownable, usingProvable {
         _playersFromPeriod =_newArray;
     }
 
-    function _transferToMatrixRunners(uint256 _amount) private {
+    function _transferToZionStackers(uint256 _amount) private {
         // To be sure to have a valid uint we substract modulo of matrixRunners number to amount
-        uint256 amountModuloRunnersNumber = _amount.sub(_amount % _matrixRunners.length);
-        uint256 _toTransfer = amountModuloRunnersNumber.div(_matrixRunners.length);
-        for (uint256 i = 0; i < _matrixRunners.length; i++) {
+        uint256 amountModuloStackersNumber = _amount.sub(_amount % _zionStackers.length);
+        uint256 _toTransfer = amountModuloStackersNumber.div(_zionStackers.length);
+        for (uint256 i = 0; i < _zionStackers.length; i++) {
             morpheus.transfer(
-                _matrixRunners[i],
+                _zionStackers[i],
                 _toTransfer
             );
         }
