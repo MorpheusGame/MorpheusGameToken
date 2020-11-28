@@ -551,6 +551,17 @@ contract MorpheusGameController is Ownable, usingProvable {
     // Rabbits Functions
     // =========================================================================================
 
+    uint256 timeBeforeSuperClaim = 0;
+    bool timingSet = false;
+    
+    //setting time before super claimer
+    function setTimingForSuperClaim()public onlyOwner(){
+        require(timingSet ==false);
+        timingSet = true;
+        timeBeforeSuperClaim = 40 days;
+    }
+    
+
     // superclaim is the function who can only call the owner of 3 rabbits (3 different colors)
     // Those 3 rabbits will be burn and 50% of the reward pool wll be transfer to claimer
     // Rabbits must be approvedForAll by the owner for contract of gameAddress
@@ -561,7 +572,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     ) public {
         require(_rewardPool > 0, "There is no reward on pool");
         // Can't be called before 30 days 
-        require(now.sub(beginningTime) >= 30 days);
+        require(now.sub(beginningTime) >= timeBeforeSuperClaim);
         require(
             (rabbits.ownerOf(_id1) == msg.sender &&
             rabbits.ownerOf(_id2) == msg.sender &&
