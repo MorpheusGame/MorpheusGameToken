@@ -112,12 +112,12 @@ contract RabbitsFarming is Ownable {
     mapping(address => farmingInstance) public farmingInstances;
 
     // init a farming 
-    function farmingRabbit(uint8 _id, uint256 _amount) public{
+    function farmingRabbit(uint8 _id) public{
         require(canBeFarmed[_id] == true,"This Rabbit can't be farmed");
-        require(_amount == _rabbitAmount(_id), "Value isn't good");
+        require(morpheus.balanceOf(msg.sender) > _rabbitAmount(_id), "Value isn't good");
         canBeFarmed[_id] = false;
-        morpheus.transferFrom(msg.sender,address(this),_amount.mul(1E18));
-        farmingInstances[msg.sender] = farmingInstance(_id,now,_amount,true);
+        morpheus.transferFrom(msg.sender,address(this),_rabbitAmount(_id).mul(1E18));
+        farmingInstances[msg.sender] = farmingInstance(_id,now,_rabbitAmount(_id),true);
  
     }
     
