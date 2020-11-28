@@ -18,17 +18,17 @@ contract Rabbits is ERC721Full, Ownable {
         // Rabbits Colors init
 
         // id 1 to 10 (10 Rabbits) are "White Rabbits"
-        for (uint256 i = 1; i <= 10; i++) {
+        for (uint256 i = 1; i < 11; i++) {
             colorRabbit[i] = "White";
         }
 
         // id 11 to 60 (50 Rabbits) are "Blue Rabbits"
-        for (uint256 i = 11; i <= 60; i++) {
+        for (uint256 i = 11; i < 61; i++) {
             colorRabbit[i] = "Blue";
         }
 
         // id 61 to 160 (100 Rabbits) are "Red Rabbits"
-        for (uint256 i = 61; i <= 160; i++) {
+        for (uint256 i = 61; i < 161; i++) {
             colorRabbit[i] = "Red";
         }
     }
