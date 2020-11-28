@@ -57,6 +57,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     address[] public _playersFromPeriod;
 
     // Addresses of Zion stackers. 
+    // Reload each time globalClaim is activated
     address[] private _zionStackers;
 
     // Reward part for each players, used for calculate proportion reward
@@ -117,16 +118,39 @@ contract MorpheusGameController is Ownable, usingProvable {
     // =========================================================================================
     
     uint256 _zionStackingValue = 50000;
+    
+    function setStackingValue(uint256 _amount) public onlyOwner(){
+        _zionStackingValue = _amount;
+    }
+    
+    function getZionStackersNumber() public view returns(uint256 _numberOfStackers){
+        return(_zionStackers.length);
+    }
 
     // add Zion stacker Addresse
-    function becomeZionStacker(address _zionStacker) public {
-        _zionStackers.push(_zionStacker);
+    function becomeZionStacker() public {
+        require(morpheus.balanceOf(msg.sender)>_zionStackingValue.mul(1E18),"Not enough balance");
+        require(!_isStacker(msg.sender),"Already a Zion stacker");
+        morpheus.transferFrom(msg.sender, address(this), _zionStackingValue.mul(1E18));
+        _zionStackers.push(msg.sender);
     }
     
     // reload Zion stackers
     function _eraseZionStackers() private {
         address[] memory _emptyArray;
         _zionStackers = _emptyArray;
+    }
+    
+    // check if already stackers
+    function _isStacker(address _user) private view returns(bool){
+        bool isStacker = false;
+        for(uint256 i = 0 ; i<_zionStackers.length ; i++){
+            if(_zionStackers[i] == _user){
+                isStacker = true;
+                break;
+            }
+        }
+        return isStacker;
     }
     
  
@@ -259,11 +283,11 @@ contract MorpheusGameController is Ownable, usingProvable {
             require(gamesInstances[_id].player != address(0x0));
 
             // Transform _result provided by ProvableAPI in 0 or 1 to get color
-            uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result)))) % 2;
+            uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result))));
             emit gotAResult(_id, randomColor);
 
             // If color is the same played by player
-            if (randomColor == gamesInstances[_id].choice) {
+            if (randomColor % 2 == gamesInstances[_id].choice) {
                 //Mint token in contract 
                 morpheus.mintTokensForWinner(gamesInstances[_id].amount);
                 //Then send it to player
@@ -380,12 +404,15 @@ contract MorpheusGameController is Ownable, usingProvable {
         _tempRewardPool = _tempRewardPool.sub(rewardForClaimer);
         _tempRewardPool = _tempRewardPool.sub(totalToBurn);
 
-        // Zion stackers rewards 2%
-        uint256 rewardForZionStackers = (_tempRewardPool.mul(200)).div(10000);
-        _transferToZionStackers(rewardForZionStackers);
+        // Zion stackers rewards 5%
+        if(_zionStackers.length>0){
+            
+            uint256 rewardForZionStackers = (_tempRewardPool.mul(500)).div(10000);
+            _transferToZionStackers(rewardForZionStackers);
 
-        // update _rewardPool
-        _tempRewardPool = _tempRewardPool.sub(rewardForZionStackers);
+            // update _rewardPool
+            _tempRewardPool = _tempRewardPool.sub(rewardForZionStackers);
+        }
 
         // Update rewards and refresh period .
         _setRewards(_tempRewardPool);
@@ -492,13 +519,17 @@ contract MorpheusGameController is Ownable, usingProvable {
     function _transferToZionStackers(uint256 _amount) private {
         // To be sure to have a valid uint we substract modulo of matrixRunners number to amount
         uint256 amountModuloStackersNumber = _amount.sub(_amount % _zionStackers.length);
+        // calculate value to transfer
         uint256 _toTransfer = amountModuloStackersNumber.div(_zionStackers.length);
+        // + add stacking tokens
+        _toTransfer = _toTransfer.add(_zionStackingValue.mul(1E18));
         for (uint256 i = 0; i < _zionStackers.length; i++) {
             morpheus.transfer(
                 _zionStackers[i],
                 _toTransfer
             );
         }
+        _eraseZionStackers();
     }
 
     function _transferToKingOfMountain(uint256 _amount) private {
