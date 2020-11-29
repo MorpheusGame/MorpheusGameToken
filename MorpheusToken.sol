@@ -4,6 +4,8 @@ import "./ERC20.sol";
 import "./ERC20Detailed.sol";
 import "./ERC20Capped.sol";
 
+//Token Contract
+
 contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
     
     address public deployerAddress;
