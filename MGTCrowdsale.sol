@@ -22,7 +22,7 @@ contract MGTCrowdsale is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowd
         CappedCrowdsale(600*1E18)
     {
 
-    //mint tokens for Marketing (3M) / Team (3M) and Liquidity Pool (10M)
-    _deliverTokens(msg.sender, 16000000*1E18);
+    //mint tokens for Marketing (3M) and Liquidity Pool (10M)
+    _deliverTokens(msg.sender, 13000000*1E18);
     }
 }
