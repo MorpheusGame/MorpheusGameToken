@@ -77,14 +77,9 @@ contract MorpheusGameController is Ownable, usingProvable {
     // alert event needed for alert of any provableAPI problem
     event alertEvent(string alert);
     
-    
     event winAlert(address winner, uint256 amount);
     event lostAlert(address looser, uint256 amount);
-    event rewardClaimed(
-        address claimer,
-        uint256 claimerGain,
-        uint256 burntValue
-    );
+    event rewardClaimed(address claimer,uint256 claimerGain,uint256 burntValue);
     event newKingOfTheMountain(address king);
     event gotAPlayer(address _player, bytes32 _id);
     event gotAResult(bytes32 _id, uint8 _result);
@@ -119,6 +114,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     
     uint256 _zionStackingValue = 50000;
     
+    
     function setStackingValue(uint256 _amount) public onlyOwner(){
         _zionStackingValue = _amount;
     }
@@ -131,6 +127,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     function becomeZionStacker() public {
         require(morpheus.balanceOf(msg.sender)>_zionStackingValue.mul(1E18),"Not enough balance");
         require(!_isStacker(msg.sender),"Already a Zion stacker");
+        require(_zionStackers.length<50, "There's no place place for you");
         morpheus.transferFrom(msg.sender, address(this), _zionStackingValue.mul(1E18));
         _zionStackers.push(msg.sender);
     }
@@ -413,10 +410,10 @@ contract MorpheusGameController is Ownable, usingProvable {
         _tempRewardPool = _tempRewardPool.sub(rewardForClaimer);
         _tempRewardPool = _tempRewardPool.sub(totalToBurn);
 
-        // Zion stackers rewards 5%
+        // Zion stackers rewards 10%
         if(_zionStackers.length>0){
             
-            uint256 rewardForZionStackers = (_tempRewardPool.mul(500)).div(10000);
+            uint256 rewardForZionStackers = (_tempRewardPool.mul(1000)).div(10000);
             _transferToZionStackers(rewardForZionStackers);
 
             // update _rewardPool
@@ -559,16 +556,6 @@ contract MorpheusGameController is Ownable, usingProvable {
     // =========================================================================================
     // Rabbits Functions
     // =========================================================================================
-
-    uint256 timeBeforeSuperClaim = 0;
-    bool timingSet = false;
-    
-    //setting time before super claimer
-    function setTimingForSuperClaim()public onlyOwner(){
-        require(timingSet ==false);
-        timingSet = true;
-        timeBeforeSuperClaim = 40 days;
-    }
     
 
     // superclaim is the function who can only call the owner of 3 rabbits (3 different colors)
@@ -582,7 +569,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         require(gameInstanceNumber == 0, "There is a game instance pending please wait");
         require(_rewardPool > 0, "There is no reward on pool");
         // Can't be called before 30 days 
-        require(now.sub(beginningTime) >= timeBeforeSuperClaim);
+        require(now.sub(beginningTime) >= 40 days);
         require(
             (rabbits.ownerOf(_id1) == msg.sender &&
             rabbits.ownerOf(_id2) == msg.sender &&
