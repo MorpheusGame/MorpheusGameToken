@@ -5,6 +5,7 @@ import "./Ownable.sol";
 
 //NFT Contract
 
+
 contract Rabbits is ERC721Full, Ownable {
     // All 160 Rabbits got color White, Blue and Red
     mapping(uint256 => string) public colorRabbit;
