@@ -35,8 +35,6 @@ contract MorpheusGameController is Ownable, usingProvable {
     uint256 private _lastRewardTime;
     // Total quantity of tokens in the reward pool
     uint256 private _rewardPool;
-    // Total reward part, used for calculate proportion reward for users
-    uint256 private _totalRewardPart;
 
     // number of period / claim
     uint256 private _numberOfPeriod = 1;
@@ -61,11 +59,11 @@ contract MorpheusGameController is Ownable, usingProvable {
     address[] private _zionStackers;
 
     // Reward part for each players, used for calculate proportion reward
-    mapping(address => uint256) private _myRewardPart;
+
     // Reward that player can claim
     mapping(address => uint256) private _myRewardTokens;
 
-    // Values used for calculate who are Kings
+    // Values used for calculate who are Kings and proportionnal of the reward pool
     mapping(address => uint256) private _myPeriodLoss;
     mapping(address => uint256) private _myPeriodBets;
 
@@ -114,7 +112,6 @@ contract MorpheusGameController is Ownable, usingProvable {
     
     uint256 _zionStackingValue = 50000;
     
-    
     function setStackingValue(uint256 _amount) public onlyOwner(){
         _zionStackingValue = _amount;
     }
@@ -149,8 +146,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         }
         return isStacker;
     }
-    
- 
+
 
     // =========================================================================================
     // Get Functions
@@ -165,7 +161,6 @@ contract MorpheusGameController is Ownable, usingProvable {
             uint256 totalValuePlayed,
             uint256 totalValuePlayedOnPeriod,
             uint256 totalValueBurned,
-            uint256 totalPart,
             uint256 lastRewardTime,
             uint256 actualPool,
             uint256 totalPlayersForThosePeriod
@@ -176,7 +171,6 @@ contract MorpheusGameController is Ownable, usingProvable {
             _totalValuePlayed,
             _totalValuePlayedOnPeriod,
             _totalValueBurned,
-            _totalRewardPart,
             _lastRewardTime,
             _rewardPool,
             _playersFromPeriod.length
@@ -188,14 +182,12 @@ contract MorpheusGameController is Ownable, usingProvable {
         public
         view
         returns (
-            uint256 playerRewardPart,
             uint256 playerRewardTokens,
             uint256 playerPeriodLoss,
             uint256 playerPeriodBets
         )
     {
         return (
-            _myRewardPart[_user],
             _myRewardTokens[_user],
             _myPeriodLoss[_user],
             _myPeriodBets[_user]
@@ -224,8 +216,8 @@ contract MorpheusGameController is Ownable, usingProvable {
 
     function choosePils(uint256 amount, uint8 _choice) public payable {
         uint256 _amount = amount.mul(1E18);
-        // We need some GAS for get a true random number provided by provable API
-        require(msg.value == 4 finney);
+        // We need some GAS for getting a true random number provided by provable API
+        require(msg.value == 5 finney);
         // Need to have found amount
         require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
         // 0 = Blue or 1 = Red
@@ -257,17 +249,13 @@ contract MorpheusGameController is Ownable, usingProvable {
         }
 
         // get random with provable (arg1: delay, arg2: uintSize, arg3: GasPrice)
-        bytes32 _id = provable_newRandomDSQuery(0, 8, 200000);
+        bytes32 _id = provable_newRandomDSQuery(0, 7, 250000);
         gamesInstances[_id] = gameInstance(msg.sender, _choice, _amount);
         emit gotAPlayer(msg.sender,_id);
     }
 
     // Call back function used by proableAPI
-    function __callback(
-        bytes32 _id,
-        string memory _result,
-        bytes memory _proof
-    ) public {
+    function __callback(bytes32 _id,string memory _result,bytes memory _proof) public {
         // Only provable address can call this function
         require(msg.sender == provable_cbAddress());
         
@@ -308,12 +296,6 @@ contract MorpheusGameController is Ownable, usingProvable {
     
                 // Update reward pool
                 _rewardPool = _rewardPool.add(gamesInstances[_id].amount);
-                
-                //Update total part
-                _totalRewardPart = _totalRewardPart.add(gamesInstances[_id].amount);
-    
-                // Update personnal Proportionnal reward (counter) for player
-                _myRewardPart[gamesInstances[_id].player] = _myRewardPart[gamesInstances[_id].player].add(gamesInstances[_id].amount);
     
                 emit lostAlert(gamesInstances[_id].player, gamesInstances[_id].amount);
                 
@@ -324,7 +306,6 @@ contract MorpheusGameController is Ownable, usingProvable {
         gameInstanceNumber = gameInstanceNumber.sub(1);
     }
     
-
     // Checking if player is on the players list 
     function _isPlayerInList(address _player) internal view returns (bool) {
         bool exist = false;
@@ -373,6 +354,7 @@ contract MorpheusGameController is Ownable, usingProvable {
 
         // Security re entry
         uint256 _tempRewardPool = _rewardPool;
+        uint256 _originalLostValue = _rewardPool;
         _rewardPool = 0;
         _totalValuePlayedOnPeriod = 0;
         _lastRewardTime = now;
@@ -421,7 +403,7 @@ contract MorpheusGameController is Ownable, usingProvable {
         }
 
         // Update rewards and refresh period .
-        _setRewards(_tempRewardPool);
+        _setRewards(_tempRewardPool,_originalLostValue);
 
         emit rewardClaimed(msg.sender, rewardForClaimer, totalToBurn);
     }
@@ -480,19 +462,18 @@ contract MorpheusGameController is Ownable, usingProvable {
         return _burnPercentage;
     }
 
-    function _setRewards(uint256 _rewardAmmount) private {
-        require(_totalRewardPart > 0 && _playersFromPeriod.length > 0);
+    function _setRewards(uint256 _rewardAmmount, uint256 _originalLostValue) private {
+        require(_originalLostValue > 0 && _playersFromPeriod.length > 0);
         // Reentry secure
-        uint256 _tempTotalRewardPart = _totalRewardPart.mul(100);
-        _totalRewardPart = 0;
+        uint256 _tempTotalRewardPart = _originalLostValue.mul(100);
 
-        for (uint8 i = 0; i < _playersFromPeriod.length; i++) {
+        for (uint256 i = 0; i < _playersFromPeriod.length; i++) {
             // Check if player got reward part
-            if (_myRewardPart[_playersFromPeriod[i]] > 0) {
+            if (_myPeriodLoss[_playersFromPeriod[i]] > 0) {
                 // Reentry secure
                 uint256 _myTempRewardPart
-                 = _myRewardPart[_playersFromPeriod[i]].mul(100);
-                _myRewardPart[_playersFromPeriod[i]] = 0;
+                 = _myPeriodLoss[_playersFromPeriod[i]].mul(100);
+                _myPeriodLoss[_playersFromPeriod[i]] = 0;
 
                 uint256 _oldPersonnalReward
                  = _myRewardTokens[_playersFromPeriod[i]];
@@ -607,13 +588,10 @@ contract MorpheusGameController is Ownable, usingProvable {
         _deleteAllPlayersFromPeriod();
 
     }
-    
-    
+        
     // Accept payment for reload contract balance of Eth
     // needed for pay the oracle 
     function() payable external {
         
     }
-    
-
 }
