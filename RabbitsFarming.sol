@@ -27,15 +27,21 @@ contract RabbitsFarming is Ownable {
     // address who farm the rabbit
     mapping(uint256 => address) private _farmingBy;
     
+    // array of spots for Rabbits can be farmed
+    uint256[] private _spots;
+    
+    // Number of MGT Locked on stacking
+    uint256 public MGTStackedOnFarming;
+    
     // Time for farming
     uint256 public whiteRabbitsFarmingTime = 30 days;
     uint256 public blueRabbitsFarmingTime = 20 days;
     uint256 public redRabbitsFarmingTime = 10 days;
     
     // Amount for farming Values will and can change 
-    uint256 public amountForWhiteRabbits = 50000; 
-    uint256 public amountForBlueRabbits = 20000;
-    uint256 public amountForRedRabbits = 10000;
+    uint256 public amountForWhiteRabbits = 100000; 
+    uint256 public amountForBlueRabbits = 50000;
+    uint256 public amountForRedRabbits = 25000;
  
     
     // =========================================================================================
@@ -72,7 +78,6 @@ contract RabbitsFarming is Ownable {
         redRabbitsFarmingTime = _time;
     }
     
-    
     //setting amount MGT needed for farming a rabbit
     function setAmountForFarmingWhiteRabbit(uint256 _amount) public onlyOwner(){
         amountForWhiteRabbits = _amount;
@@ -95,6 +100,7 @@ contract RabbitsFarming is Ownable {
         require(_id>=1 && _id<=160);
         require(farmed[_id] == false,"Already farmed");
         canBeFarmed[_id] = true;
+        _spots.push(_id);
     }
     
     // =========================================================================================
@@ -102,7 +108,7 @@ contract RabbitsFarming is Ownable {
     // =========================================================================================
 
     struct farmingInstance {
-        uint8 rabbitId;
+        uint256 rabbitId;
         uint256 farmingBeginningTime;
         uint256 amount;
         bool isActive;
@@ -112,13 +118,14 @@ contract RabbitsFarming is Ownable {
     mapping(address => farmingInstance) public farmingInstances;
 
     // init a farming 
-    function farmingRabbit(uint8 _id) public{
+    function farmingRabbit(uint256 _id) public{
         require(canBeFarmed[_id] == true,"This Rabbit can't be farmed");
         require(morpheus.balanceOf(msg.sender) > _rabbitAmount(_id), "Value isn't good");
+        delete _spots[_getSpotIndex(_id)];
         canBeFarmed[_id] = false;
         morpheus.transferFrom(msg.sender,address(this),_rabbitAmount(_id).mul(1E18));
         farmingInstances[msg.sender] = farmingInstance(_id,now,_rabbitAmount(_id),true);
- 
+        MGTStackedOnFarming = MGTStackedOnFarming.add(_rabbitAmount(_id));
     }
     
     // cancel my farming instance
@@ -127,6 +134,8 @@ contract RabbitsFarming is Ownable {
         morpheus.transferFrom(address(this),msg.sender,farmingInstances[msg.sender].amount.mul(1E18));
         canBeFarmed[farmingInstances[msg.sender].rabbitId] = false;
         delete farmingInstances[msg.sender];
+        _spots.push(farmingInstances[msg.sender].rabbitId);
+        MGTStackedOnFarming = MGTStackedOnFarming.sub(_rabbitAmount(farmingInstances[msg.sender].rabbitId));
         
     }
     
@@ -139,6 +148,7 @@ contract RabbitsFarming is Ownable {
         farmed[farmingInstances[msg.sender].rabbitId] = true;
         rabbits.mintRabbit(msg.sender, farmingInstances[msg.sender].rabbitId);
         delete farmingInstances[msg.sender];
+        MGTStackedOnFarming = MGTStackedOnFarming.sub(_rabbitAmount(farmingInstances[msg.sender].rabbitId));
     }
     
     // function allow to now the necessary amount for the Rabbit farming
@@ -167,6 +177,22 @@ contract RabbitsFarming is Ownable {
             _duration = redRabbitsFarmingTime;
         }
         return _duration;
+    }
+    
+    function _getSpotIndex(uint256 _id) private view returns(uint256){
+        uint256 index;
+        for( uint256 i = 0 ; i< _spots.length ; i++){
+            if(_spots[i] == _id){
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+    
+    // return spots of farming
+    function rabbitsSpot() public view returns(uint256[] memory spots){
+        return _spots;
     }
     
     // winner of contests will receive rabbits
