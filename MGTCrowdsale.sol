@@ -8,22 +8,21 @@ import "./TimedCrowdsale.sol";
 import "./MorpheusToken.sol";
 import "./MintedCrowdsale.sol";
 
-
 contract MGTCrowdsale is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowdsale{
     
 
-    constructor()
+    constructor(address payable _deployer)
         public
         Crowdsale(
             50000,
-            msg.sender,
-            new MorpheusToken(msg.sender)
+            _deployer,
+            new MorpheusToken(_deployer)
         )
         TimedCrowdsale(now, now + 7 days)
         CappedCrowdsale(600*1E18)
     {
 
-    //mint tokens for Marketing (3M) and Liquidity Pool (10M)
-    _deliverTokens(msg.sender, 13000000*1E18);
+    //mint tokens for Marketing (3M) and Liquidity Pool (7,5M)
+    _deliverTokens(_deployer, 10500000*1E18);
     }
 }
