@@ -6,9 +6,9 @@ import "./Crowdsale.sol";
 import "./CappedCrowdsale.sol";
 import "./TimedCrowdsale.sol";
 import "./MorpheusToken.sol";
-import "./MintedCrowdsale.sol";
 
-contract MGTCrowdsale is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowdsale{
+
+contract MGTCrowdsale is Crowdsale, TimedCrowdsale, CappedCrowdsale{
     
 
     constructor()
