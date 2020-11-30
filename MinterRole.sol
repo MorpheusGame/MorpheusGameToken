@@ -24,9 +24,6 @@ contract MinterRole is Context {
         return _minters.has(account);
     }
 
-    function addMinter(address account) public onlyMinter {
-        _addMinter(account);
-    }
 
     function renounceMinter() public {
         _removeMinter(_msgSender());
