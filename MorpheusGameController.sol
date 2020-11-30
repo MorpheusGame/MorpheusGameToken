@@ -2,15 +2,15 @@ pragma solidity 0.5.17;
 
 import "./Ownable.sol";
 import "./SafeMath.sol";
-import "./provableAPI.sol";
 import "./MorpheusToken.sol";
 import "./Rabbits.sol";
+import "./randomOracle.sol";
 
 // GameController Contract
 // It is a ownable contract. It meens that some function can only be call by the owner/creator of contract
 // Ownable will be transfer to a DAO after 3 months of production
 
-contract MorpheusGameController is Ownable, usingProvable {
+contract MorpheusGameController is Ownable {
     using SafeMath for uint256;
     
     constructor(MorpheusToken _morpheusToken)
@@ -21,12 +21,15 @@ contract MorpheusGameController is Ownable, usingProvable {
         // init first instance of game
         _lastRewardTime = now;
         beginningTime = now;
-        provable_setProof(proofType_Ledger);
     }
 
     // Tokens used in game
     MorpheusToken public morpheus;
     Rabbits public rabbits;
+    randomOracle oracle;
+    
+    // Oracle Address is an external smart contract providing a random result for the game.
+    address _oracleAddress;
     
     // Beginning game time
     uint256 public beginningTime;
@@ -82,6 +85,11 @@ contract MorpheusGameController is Ownable, usingProvable {
     event gotAPlayer(address _player, bytes32 _id);
     event gotAResult(bytes32 _id, uint8 _result);
     
+    modifier onlyOracle(){
+        require(msg.sender == _oracleAddress);
+        _;
+    }
+    
 
     // =========================================================================================
     // Settings Functions  that only owner can call
@@ -105,6 +113,14 @@ contract MorpheusGameController is Ownable, usingProvable {
         minimumBalanceForClaim = _amount.mul(1E18);
         emit alertEvent("Minimum balance for claim has been updated");
     }
+    
+    // Set Oracle Addresse
+    function setOracle(address _oracleAddr, randomOracle _oracleContract) public onlyOwner(){
+        _oracleAddress = _oracleAddr;
+        oracle = _oracleContract;
+    }
+    
+    
     
     // =========================================================================================
     // Zion stackers
@@ -217,7 +233,7 @@ contract MorpheusGameController is Ownable, usingProvable {
     function choosePils(uint256 amount, uint8 _choice) public payable {
         uint256 _amount = amount.mul(1E18);
         // We need some GAS for getting a true random number provided by provable API
-        require(msg.value == 5 finney);
+        //require(msg.value == 4 finney);
         // Need to have found amount
         require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
         // 0 = Blue or 1 = Red
@@ -248,38 +264,26 @@ contract MorpheusGameController is Ownable, usingProvable {
             emit newKingOfTheMountain(msg.sender);
         }
 
-        // get random with provable (arg1: delay, arg2: uintSize, arg3: GasPrice)
-        bytes32 _id = provable_newRandomDSQuery(0, 7, 250000);
+        // init an bytes32 id 
+        bytes32 _id = keccak256(abi.encodePacked(
+            _rewardPool.add(1),
+            _totalValuePlayed,
+            _lastRewardTime,
+            _totalValueBurned.add(1)
+            ));
+            
         gamesInstances[_id] = gameInstance(msg.sender, _choice, _amount);
-        emit gotAPlayer(msg.sender,_id);
+        oracle.getRandom(_id);
     }
 
     // Call back function used by proableAPI
-    function __callback(bytes32 _id,string memory _result,bytes memory _proof) public {
+    function callback(bytes32 _id,uint _result) external {
         // Only provable address can call this function
-        require(msg.sender == provable_cbAddress());
-        
-        // Check if return of provable is OK
-        if (
-            provable_randomDS_proofVerify__returnCode(_id, _result, _proof) != 0
-        ) {
-            //proof is bad
-            //return original payment to player and cancel the playing instance
-            morpheus.transfer(
-                gamesInstances[_id].player,
-                gamesInstances[_id].amount
-            );
-            emit alertEvent("Provable Random is corrupted");
-        } else {
-            //proof is good
-            require(gamesInstances[_id].player != address(0x0));
-
-            // Transform _result provided by ProvableAPI in 0 or 1 to get color
-            uint8 randomColor = uint8(uint256(keccak256(abi.encodePacked(_result))));
-            emit gotAResult(_id, randomColor);
+        require(msg.sender == _oracleAddress);
+        require(gamesInstances[_id].player != address(0x0));
 
             // If color is the same played by player
-            if (randomColor % 2 == gamesInstances[_id].choice) {
+            if (_result == gamesInstances[_id].choice) {
                 //Mint token in contract 
                 morpheus.mintTokensForWinner(gamesInstances[_id].amount);
                 //Then send it to player
@@ -301,7 +305,6 @@ contract MorpheusGameController is Ownable, usingProvable {
                 
             }
 
-        }
         delete gamesInstances[_id];
         gameInstanceNumber = gameInstanceNumber.sub(1);
     }
@@ -588,10 +591,6 @@ contract MorpheusGameController is Ownable, usingProvable {
         _deleteAllPlayersFromPeriod();
 
     }
-        
-    // Accept payment for reload contract balance of Eth
-    // needed for pay the oracle 
-    function() payable external {
-        
-    }
+    
+
 }
