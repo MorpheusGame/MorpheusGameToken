@@ -13,7 +13,7 @@ import "./randomOracle.sol";
 contract MorpheusGameController is Ownable {
     using SafeMath for uint256;
     
-    constructor(MorpheusToken _morpheusToken)
+    constructor(MorpheusToken _morpheusToken, randomOracle _oracle)
         public
     {
         //init Morpheus token address
@@ -21,6 +21,9 @@ contract MorpheusGameController is Ownable {
         // init first instance of game
         _lastRewardTime = now;
         beginningTime = now;
+        
+        //init oracle
+        oracle = _oracle;
     }
 
     // Tokens used in game
@@ -112,12 +115,6 @@ contract MorpheusGameController is Ownable {
     function setMinimumBalanceForClaim(uint256 _amount) public onlyOwner() {
         minimumBalanceForClaim = _amount.mul(1E18);
         emit alertEvent("Minimum balance for claim has been updated");
-    }
-    
-    // Set Oracle Addresse
-    function setOracle(address _oracleAddr, randomOracle _oracleContract) public onlyOwner(){
-        _oracleAddress = _oracleAddr;
-        oracle = _oracleContract;
     }
     
     
