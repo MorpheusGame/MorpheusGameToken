@@ -9,11 +9,16 @@ contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
     address public deployerAddress;
     address public gameControllerAddress;
     
-    bool public locked; 
+    bool public locked = true; 
     
-    constructor(address _deployer) public ERC20Detailed("MorpheusGameToken", "MGT", 18) ERC20Capped(500000000*1E18) {
+    // MorpheusGameController will be deployed before the token.
+    // We'll deliver the contract game address on deployment of the token 
+    // Nobody can change this game address after deployment    
+
+    
+    constructor(address _deployer, address _gameAddress) public ERC20Detailed("MorpheusGameToken", "MGT", 18) ERC20Capped(500000000*1E18) {
               deployerAddress =_deployer;
-              locked = true;
+              gameControllerAddress = _gameAddress;
     }
 
     modifier onlyGameController() {
@@ -37,13 +42,21 @@ contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
     function unlock() public onlyDeployer {
         locked = false;
     } 
-
-    function lock() public onlyDeployer {
-        locked = true;
+    
+    function _isLocked() private view returns(bool) {
+        // if crowdsale is finished + 1H ( December 12 - 16h UTC)
+        // token are automaticly unlock
+        if(now > 1607788800){
+            return true;
+        }
+        else{
+            return locked;
+        } 
     }
+
     
     function transfer(address to, uint256 amount) public returns(bool) {
-        if(locked) {
+        if(_isLocked()) {
             require(msg.sender == deployerAddress);
             super.transfer(to, amount);
         } else{
@@ -53,7 +66,7 @@ contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
     }
 
     function transferFrom(address from, address to, uint256 amount) public returns(bool) {
-        if(locked) {
+        if(_isLocked()) {
             require(msg.sender == deployerAddress);
             super.transferFrom(from, to, amount);
         } else{
@@ -62,9 +75,6 @@ contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
 
     }
 
-    function setGameControllerAddress(address _gameAddress) public onlyDeployer {
-        gameControllerAddress = _gameAddress;
-    }
 
     function burnTokens(uint256 _amount) public  {
         _burn(msg.sender, _amount);
