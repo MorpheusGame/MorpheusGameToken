@@ -13,16 +13,14 @@ import "./randomOracle.sol";
 contract MorpheusGameController is Ownable {
     using SafeMath for uint256;
     
-    constructor(MorpheusToken _morpheusToken, randomOracle _oracle)
+    constructor(randomOracle _oracle)
         public
     {
-        //init Morpheus token address
-        setMorpheusToken(_morpheusToken);
         // init first instance of game
         _lastRewardTime = now;
         beginningTime = now;
         
-        //init oracle
+                //init oracle
         oracle = _oracle;
     }
 
@@ -81,12 +79,10 @@ contract MorpheusGameController is Ownable {
     // alert event needed for alert of any provableAPI problem
     event alertEvent(string alert);
     
-    event winAlert(address winner, uint256 amount);
-    event lostAlert(address looser, uint256 amount);
     event rewardClaimed(address claimer,uint256 claimerGain,uint256 burntValue);
     event newKingOfTheMountain(address king);
-    event gotAPlayer(address _player, bytes32 _id);
-    event gotAResult(bytes32 _id, uint8 _result);
+    // need for result of playing instance 1 = win : 2 =Lost
+    event gotAResult(address _player, uint8 _result);
     
     modifier onlyOracle(){
         require(msg.sender == _oracleAddress);
@@ -118,7 +114,6 @@ contract MorpheusGameController is Ownable {
     }
     
     
-    
     // =========================================================================================
     // Zion stackers
     // =========================================================================================
@@ -136,7 +131,7 @@ contract MorpheusGameController is Ownable {
     // add Zion stacker Addresse
     function becomeZionStacker() public {
         require(morpheus.balanceOf(msg.sender)>_zionStackingValue.mul(1E18),"Not enough balance");
-        require(!_isStacker(msg.sender),"Already a Zion stacker");
+        require(!isStacker(msg.sender),"Already a Zion stacker");
         require(_zionStackers.length<50, "There's no place place for you");
         morpheus.transferFrom(msg.sender, address(this), _zionStackingValue.mul(1E18));
         _zionStackers.push(msg.sender);
@@ -149,15 +144,15 @@ contract MorpheusGameController is Ownable {
     }
     
     // check if already stackers
-    function _isStacker(address _user) private view returns(bool){
-        bool isStacker = false;
+    function isStacker(address _user) public view returns(bool){
+        bool _isStacker = false;
         for(uint256 i = 0 ; i<_zionStackers.length ; i++){
             if(_zionStackers[i] == _user){
-                isStacker = true;
+                _isStacker = true;
                 break;
             }
         }
-        return isStacker;
+        return _isStacker;
     }
 
 
@@ -288,7 +283,7 @@ contract MorpheusGameController is Ownable {
                     gamesInstances[_id].player,
                     gamesInstances[_id].amount.mul(2)
                 );
-                emit winAlert(gamesInstances[_id].player,gamesInstances[_id].amount.mul(2));
+                emit gotAResult(gamesInstances[_id].player,1);
                     
             //If player loose
             } else {
@@ -298,7 +293,7 @@ contract MorpheusGameController is Ownable {
                 // Update reward pool
                 _rewardPool = _rewardPool.add(gamesInstances[_id].amount);
     
-                emit lostAlert(gamesInstances[_id].player, gamesInstances[_id].amount);
+                emit gotAResult(gamesInstances[_id].player, 0);
                 
             }
 
