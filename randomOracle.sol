@@ -5,21 +5,28 @@ import "./SafeMath.sol";
 
 
 contract randomOracle {
+
     address public gameAddress;
     MorpheusGameController game;
     uint256 nonce = 17;
     uint8 mod = 2;
+    address public deployer;
     
     using SafeMath for uint256;
     
-   constructor(MorpheusGameController _morpheusGameController, address _gameAddress) public{
-        game = _morpheusGameController;
-        gameAddress = _gameAddress;
+   constructor() public{
+    deployer = msg.sender;
     }
     
     modifier onlyGame() {
         require(msg.sender == gameAddress);
         _;
+    }
+    
+    function setGame(MorpheusGameController _game, gameAddress _address) public{
+        require(msg.sender==deployer,"Not your Oracle");
+        game = _game;
+        gameAddress = _address;
     }
     
     
