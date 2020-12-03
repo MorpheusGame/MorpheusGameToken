@@ -7,7 +7,7 @@ import "./SafeMath.sol";
 contract randomOracle {
 
     address public gameAddress;
-    MorpheusGameController game;
+    MorpheusGameController public game;
     uint256 nonce = 17;
     uint8 mod = 2;
     address public deployer;
@@ -23,10 +23,10 @@ contract randomOracle {
         _;
     }
     
-    function setGame(MorpheusGameController _game, gameAddress _address) public{
+    function setGame(MorpheusGameController _game, address _gameAddress) public{
         require(msg.sender==deployer,"Not your Oracle");
         game = _game;
-        gameAddress = _address;
+        gameAddress = _gameAddress;
     }
     
     
