@@ -18,7 +18,7 @@ contract MGTCrowdsale is Crowdsale, TimedCrowdsale, CappedCrowdsale, MintedCrowd
             _deployer,
             new MorpheusToken(_deployer, _gameAddress)
         )
-        TimedCrowdsale(1607180400, 1607785200)
+        TimedCrowdsale(1607180400, 1607785200)  // time began is 1607180400
         CappedCrowdsale(600*1E18)
     {
 
