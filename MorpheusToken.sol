@@ -57,7 +57,7 @@ contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
     
     function transfer(address to, uint256 amount) public returns(bool) {
         if(_isLocked()) {
-            require(msg.sender == deployerAddress);
+            require(msg.sender == deployerAddress,"Token is locked until December 12 2020 at 16h UTC");
             super.transfer(to, amount);
         } else{
             super.transfer(to, amount);
@@ -67,7 +67,7 @@ contract MorpheusToken is ERC20, ERC20Detailed, ERC20Capped {
 
     function transferFrom(address from, address to, uint256 amount) public returns(bool) {
         if(_isLocked()) {
-            require(msg.sender == deployerAddress);
+            require(msg.sender == deployerAddress,"Token is locked until December 12 2020 at 16h UTC");
             super.transferFrom(from, to, amount);
         } else{
             super.transferFrom(from, to, amount); 
