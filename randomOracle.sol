@@ -29,6 +29,10 @@ contract randomOracle {
         gameAddress = _gameAddress;
     }
     
+    function getRandom(bytes32 _id) external onlyGame() returns(uint){
+        return _getRandom(_id);
+    }
+    
     
     function _getRandom(bytes32 _id) private returns(uint256){
         uint256 _random = (uint256(keccak256(abi.encodePacked(now,_id, block.difficulty,nonce,block.number)))) % mod; 
@@ -36,9 +40,6 @@ contract randomOracle {
         returnResult(_id,_random);
     }
     
-    function getRandom(bytes32 _id) external onlyGame() returns(uint){
-        return _getRandom(_id);
-    }
     
     function returnResult(bytes32 _id, uint _result) private{
         game.callback(_id,_result);
