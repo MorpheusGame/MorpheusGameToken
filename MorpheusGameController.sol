@@ -13,7 +13,7 @@ import "./randomOracle.sol";
 contract MorpheusGameController is Ownable {
     using SafeMath for uint256;
     
-    constructor(randomOracle _oracle)
+    constructor(randomOracle _oracle, address _oracleAddress)
         public
     {
         // init first instance of game
@@ -22,15 +22,16 @@ contract MorpheusGameController is Ownable {
         
                 //init oracle
         oracle = _oracle;
+        oracleAddress = _oracleAddress;
     }
 
     // Tokens used in game
     MorpheusToken public morpheus;
     Rabbits public rabbits;
-    randomOracle oracle;
+    randomOracle public oracle;
     
     // Oracle Address is an external smart contract providing a random result for the game.
-    address _oracleAddress;
+    address public oracleAddress;
     
     // Beginning game time
     uint256 public beginningTime;
@@ -83,11 +84,6 @@ contract MorpheusGameController is Ownable {
     event newKingOfTheMountain(address king);
     // need for result of playing instance 1 = win : 2 =Lost
     event gotAResult(address _player, uint8 _result);
-    
-    modifier onlyOracle(){
-        require(msg.sender == _oracleAddress);
-        _;
-    }
     
 
     // =========================================================================================
@@ -223,13 +219,12 @@ contract MorpheusGameController is Ownable {
     mapping(bytes32 => gameInstance) gamesInstances;
 
     function choosePils(uint256 amount, uint8 _choice) public payable {
+        require(amount > 0 && amount <= 250000,"Your bet must be between 0 to 250 000 MGT");
         uint256 _amount = amount.mul(1E18);
-        // We need some GAS for getting a true random number provided by provable API
-        //require(msg.value == 4 finney);
         // Need to have found amount
-        require(_amount > 0 && morpheus.balanceOf(msg.sender) > _amount);
+        require(morpheus.balanceOf(msg.sender) > _amount, "You don't have suffisant balance");
         // 0 = Blue or 1 = Red
-        require(_choice == 0 || _choice == 1 );
+        require(_choice == 0 || _choice == 1, "Choice must be 0 or 1" );
 
         // First transfer tokens played in the contract
         morpheus.transferFrom(msg.sender, address(this), _amount);
@@ -271,8 +266,8 @@ contract MorpheusGameController is Ownable {
     // Call back function used by proableAPI
     function callback(bytes32 _id,uint _result) external {
         // Only provable address can call this function
-        require(msg.sender == _oracleAddress);
-        require(gamesInstances[_id].player != address(0x0));
+        require(msg.sender == oracleAddress, "Callback doesn't come from good Oracle");
+        require(gamesInstances[_id].player != address(0x0), "Instance dosn't exist");
 
             // If color is the same played by player
             if (_result == gamesInstances[_id].choice) {
